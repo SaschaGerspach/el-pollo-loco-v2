@@ -1,5 +1,6 @@
 import { Scene } from "phaser";
 import { ATLAS_PATH, ATLASES } from "../config/assets";
+import { BACKGROUND_LAYERS, SKY } from "../config/background";
 import { GAME_HEIGHT, GAME_WIDTH } from "../config/display";
 
 const BAR_WIDTH = GAME_WIDTH / 2;
@@ -27,5 +28,12 @@ export class PreloadScene extends Scene {
     for (const key of ATLASES) {
       this.load.multiatlas(key, `${ATLAS_PATH}/${key}.json`, ATLAS_PATH);
     }
+    for (const { key, path } of [SKY, ...BACKGROUND_LAYERS]) {
+      this.load.image(key, path);
+    }
+  }
+
+  create() {
+    this.scene.start("game");
   }
 }
