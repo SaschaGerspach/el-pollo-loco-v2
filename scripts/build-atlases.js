@@ -2,23 +2,11 @@ import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { packAsync } from "free-tex-packer-core";
 import sharp from "sharp";
+import { ATLAS_PATH, ATLAS_SCALES } from "../src/config/assets.ts";
 
 const SOURCE_DIR = "assets-src/sprites";
-const OUTPUT_DIR = "public/assets/atlases";
+const OUTPUT_DIR = path.join("public", ATLAS_PATH);
 const MAX_TEXTURE_SIZE = 4096;
-
-// Old display size × 2.25 (480 → 1080 px height) divided by the source size. Where the old
-// game drew a sprite distorted, the larger of the width and height factor is used.
-const SCALES = {
-  pepe: 0.47,
-  "chicken-normal": 0.91,
-  "chicken-small": 0.77,
-  endboss: 0.74,
-  bottle: 0.57,
-  coin: 0.75,
-  hud: 0.72,
-  ui: 1,
-};
 
 // The packer's own scale option resizes the finished texture as a whole, which leaves fractional
 // frame coordinates and aliasing. Each sprite is therefore resized on its own before packing.
@@ -82,6 +70,6 @@ async function buildAtlas(name, scale) {
 
 await rm(OUTPUT_DIR, { recursive: true, force: true });
 await mkdir(OUTPUT_DIR, { recursive: true });
-for (const [name, scale] of Object.entries(SCALES)) {
+for (const [name, scale] of Object.entries(ATLAS_SCALES)) {
   await buildAtlas(name, scale);
 }

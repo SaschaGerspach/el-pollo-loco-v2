@@ -1,7 +1,7 @@
 import { AUTO, Game, Scale } from "phaser";
-import { DEBUG, DEBUG_TARGET_FPS } from "./config/debug";
 import { GAME_HEIGHT, GAME_WIDTH } from "./config/display";
 import { GRAVITY, PHYSICS_FPS } from "./config/world";
+import { DEBUG, DEBUG_TARGET_FPS } from "./debug";
 import { GameScene } from "./scenes/GameScene";
 import { PreloadScene } from "./scenes/PreloadScene";
 

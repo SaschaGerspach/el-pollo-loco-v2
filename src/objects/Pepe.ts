@@ -47,7 +47,8 @@ export class Pepe extends Physics.Arcade.Sprite {
 
   control(input: PepeInput, delta: number) {
     const direction = Number(input.right) - Number(input.left);
-    const onGround = this.body.blocked.down || this.body.touching.down;
+    // touching.down is also set by overlaps such as coins; only solid ground sets blocked.down.
+    const onGround = this.body.onFloor();
 
     this.setVelocityX(direction * PEPE.walkSpeed);
     if (direction !== 0) this.setFlipX(direction < 0);

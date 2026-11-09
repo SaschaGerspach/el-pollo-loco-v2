@@ -11,5 +11,23 @@ export default defineConfig(
     files: ["scripts/**/*.js"],
     languageOptions: { globals: { console: "readonly" } },
   },
+  {
+    // Unit tests import these modules in Node, where Phaser and browser globals do not exist.
+    files: ["src/logic/**/*.ts", "src/config/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        { paths: [{ name: "phaser", allowTypeImports: true }] },
+      ],
+      "no-restricted-globals": [
+        "error",
+        "window",
+        "document",
+        "localStorage",
+        "navigator",
+        "location",
+      ],
+    },
+  },
   prettier,
 );

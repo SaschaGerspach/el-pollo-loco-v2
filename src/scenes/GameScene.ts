@@ -1,6 +1,5 @@
-import { Input, Scene } from "phaser";
+import { Cameras, Input, Scene } from "phaser";
 import { CONTROLS } from "../config/controls";
-import { DEBUG, DEBUG_DEMO } from "../config/debug";
 import { GAME_HEIGHT, GAME_WIDTH } from "../config/display";
 import { PEPE } from "../config/pepe";
 import {
@@ -9,6 +8,7 @@ import {
   GROUND_Y,
   LEVEL_WIDTH,
 } from "../config/world";
+import { DEBUG, DEBUG_DEMO } from "../debug";
 import { ParallaxBackground } from "../objects/ParallaxBackground";
 import { Pepe, type PepeInput } from "../objects/Pepe";
 
@@ -20,13 +20,15 @@ export class GameScene extends Scene {
   private keys!: Keys;
   private debugOverlay?: HTMLElement;
   // Sum of frame deltas; unlike this.time.now it stands still while the scene is paused.
-  private elapsed = 0;
+  // Set in create() because a restart reuses this scene instance.
+  private elapsed!: number;
 
   constructor() {
     super("game");
   }
 
   create() {
+    this.elapsed = 0;
     this.background = new ParallaxBackground(this);
     this.physics.world.setBounds(0, 0, LEVEL_WIDTH, GAME_HEIGHT);
 
@@ -47,6 +49,12 @@ export class GameScene extends Scene {
       .setBounds(0, 0, LEVEL_WIDTH, GAME_HEIGHT)
       .startFollow(this.pepe, true)
       .setFollowOffset(CAMERA_PEPE_SCREEN_X - GAME_WIDTH / 2, 0);
+    // The camera scrolls in preRender; updating the layers in update() would lag one frame.
+    this.cameras.main.on(
+      Cameras.Scene2D.Events.FOLLOW_UPDATE,
+      (camera: Cameras.Scene2D.Camera) =>
+        this.background.update(camera, this.elapsed),
+    );
 
     this.keys = this.input.keyboard!.addKeys(CONTROLS) as Keys;
 
@@ -69,7 +77,6 @@ export class GameScene extends Scene {
           jump: Input.Keyboard.JustDown(jump) || jump.isDown,
         };
     this.pepe.control(input, delta);
-    this.background.update(this.cameras.main, this.elapsed);
 
     if (this.debugOverlay) {
       const fps = Math.round(this.game.loop.actualFps);
