@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { RULES } from "../../src/config/rules";
 import { GROUND_Y } from "../../src/config/world";
 
 function collectProblems(page: Page) {
@@ -22,10 +23,18 @@ function collectProblems(page: Page) {
   return problems;
 }
 
+// Reads the debug overlay, which shows Pepe's position and state and the round's values.
 async function pepe(page: Page) {
   const text = (await page.locator("#debug").textContent()) ?? "";
   const [, x, y, state] = text.match(/x (\d+)\s+y (\d+)\s+(\S+)/) ?? [];
-  return { x: Number(x), y: Number(y), state };
+  const [, hp, bottles] = text.match(/hp (\d+)\s+bottles (\d+)/) ?? [];
+  return {
+    x: Number(x),
+    y: Number(y),
+    state,
+    hp: Number(hp),
+    bottles: Number(bottles),
+  };
 }
 
 async function startGame(page: Page) {
@@ -63,4 +72,24 @@ test("Pepe walks and jumps, even on a tap within one frame", async ({
   await expect
     .poll(async () => (await pepe(page)).y, { timeout: 15_000 })
     .toBe(GROUND_Y);
+});
+
+test("Pepe collects bottles, gets hurt by a chicken and throws a bottle", async ({
+  page,
+}) => {
+  await startGame(page);
+
+  // The first bottles lie between Pepe's start and the first chicken.
+  await page.keyboard.down("d");
+  await expect.poll(async () => (await pepe(page)).bottles).toBeGreaterThan(0);
+  await expect
+    .poll(async () => (await pepe(page)).hp, { timeout: 15_000 })
+    .toBeLessThan(RULES.maxHealth);
+  await page.keyboard.up("d");
+
+  const { bottles } = await pepe(page);
+  await page.keyboard.press("e");
+  await expect
+    .poll(async () => (await pepe(page)).bottles)
+    .toBeLessThan(bottles);
 });

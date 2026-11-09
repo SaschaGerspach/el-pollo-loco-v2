@@ -1,7 +1,9 @@
-import { Cameras, Input, Scene } from "phaser";
-import { CONTROLS } from "../config/controls";
+import { Cameras, type Physics, Scene } from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH } from "../config/display";
+import { COIN, GROUND_BOTTLE } from "../config/items";
+import { LEVEL } from "../config/level";
 import { PEPE } from "../config/pepe";
+import { RULES } from "../config/rules";
 import {
   CAMERA_PEPE_SCREEN_X,
   GROUND_THICKNESS,
@@ -9,22 +11,26 @@ import {
   LEVEL_WIDTH,
 } from "../config/world";
 import { DEBUG, DEBUG_DEMO } from "../debug";
+import { Controls, type PlayerInput } from "../input/Controls";
+import { isStomp } from "../logic/contact";
+import { GAME_EVENT, type GameEvent } from "../logic/events";
+import { Round } from "../logic/round";
+import { Chicken } from "../objects/Chicken";
 import { ParallaxBackground } from "../objects/ParallaxBackground";
-import { Pepe, type PepeInput } from "../objects/Pepe";
-
-type Keys = Record<keyof typeof CONTROLS, Input.Keyboard.Key>;
+import { Pepe } from "../objects/Pepe";
+import { ThrownBottle } from "../objects/ThrownBottle";
 
 export class GameScene extends Scene {
   private background!: ParallaxBackground;
   private pepe!: Pepe;
-  private keys!: Keys;
+  private controls!: Controls;
+  private round!: Round;
+  private chickens!: Physics.Arcade.Group;
+  private thrownBottles!: Physics.Arcade.Group;
   private debugOverlay?: HTMLElement;
   // Sum of frame deltas; unlike this.time.now it stands still while the scene is paused.
   // Set in create() because a restart reuses this scene instance.
   private elapsed!: number;
-  // A tap that starts and ends between two frames never shows up in isDown, and Phaser clears
-  // JustDown on key up, so the key's down event marks it until the next update.
-  private jumpPressed!: boolean;
 
   constructor() {
     super("game");
@@ -32,7 +38,7 @@ export class GameScene extends Scene {
 
   create() {
     this.elapsed = 0;
-    this.jumpPressed = false;
+    this.round = new Round(RULES, LEVEL.coins.length);
     this.background = new ParallaxBackground(this);
     this.physics.world.setBounds(0, 0, LEVEL_WIDTH, GAME_HEIGHT);
 
@@ -46,8 +52,34 @@ export class GameScene extends Scene {
       .setVisible(false);
     this.physics.add.existing(ground, true);
 
+    const coins = this.createCoins();
+    const groundBottles = this.createGroundBottles();
+    this.chickens = this.createChickens();
+    this.thrownBottles = this.physics.add.group();
     this.pepe = new Pepe(this, PEPE.startX, GROUND_Y);
+
     this.physics.add.collider(this.pepe, ground);
+    this.physics.add.overlap(this.pepe, coins, (_pepe, coin) =>
+      this.collectCoin(coin as Physics.Arcade.Sprite),
+    );
+    this.physics.add.overlap(
+      this.pepe,
+      groundBottles,
+      (_pepe, bottle) => this.collectBottle(bottle as Physics.Arcade.Sprite),
+      () => this.round.canCollectBottle(),
+    );
+    this.physics.add.overlap(this.pepe, this.chickens, (_pepe, chicken) =>
+      this.touchChicken(chicken as Chicken),
+    );
+    this.physics.add.collider(this.thrownBottles, ground, (bottle) =>
+      this.splash(bottle as ThrownBottle),
+    );
+    this.physics.add.overlap(
+      this.thrownBottles,
+      this.chickens,
+      (bottle, chicken) =>
+        this.hitChicken(bottle as ThrownBottle, chicken as Chicken),
+    );
 
     this.cameras.main
       .setBounds(0, 0, LEVEL_WIDTH, GAME_HEIGHT)
@@ -60,14 +92,7 @@ export class GameScene extends Scene {
         this.background.update(camera, this.elapsed),
     );
 
-    this.keys = this.input.keyboard!.addKeys(CONTROLS) as Keys;
-    const markJump = () => {
-      this.jumpPressed = true;
-    };
-    this.keys.jump.on(Input.Keyboard.Events.DOWN, markJump);
-    this.events.once("shutdown", () =>
-      this.keys.jump.off(Input.Keyboard.Events.DOWN, markJump),
-    );
+    this.controls = new Controls(this);
 
     if (DEBUG) {
       const overlay = createDebugOverlay();
@@ -78,32 +103,127 @@ export class GameScene extends Scene {
 
   update(_time: number, delta: number) {
     this.elapsed += delta;
-    const jump = this.jumpPressed || this.keys.jump.isDown;
-    this.jumpPressed = false;
-    const input: PepeInput = DEBUG_DEMO
-      ? demoInput(this.elapsed)
-      : {
-          left: this.keys.left.isDown,
-          right: this.keys.right.isDown,
-          jump,
-        };
+    const keyboardInput = this.controls.read();
+    const input = DEBUG_DEMO ? demoInput(this.elapsed) : keyboardInput;
     this.pepe.control(input, delta);
+    if (input.throw) this.throwBottle();
 
     if (this.debugOverlay) {
       const fps = Math.round(this.game.loop.actualFps);
       const { x, y, currentState } = this.pepe;
       const time = Math.round(this.elapsed);
-      this.debugOverlay.textContent = `fps ${fps}  x ${Math.round(x)}  y ${Math.round(y)}  ${currentState}  t ${time}`;
+      const { health, bottles, coins, totalCoins } = this.round;
+      const chickens = this.chickens
+        .getChildren()
+        .filter((chicken) => (chicken as Chicken).body.enable).length;
+      this.debugOverlay.textContent =
+        `fps ${fps}  x ${Math.round(x)}  y ${Math.round(y)}  ${currentState}  t ${time}` +
+        `  hp ${health}  bottles ${bottles}  coins ${coins}/${totalCoins}  chickens ${chickens}`;
     }
+  }
+
+  private createCoins() {
+    const coins = this.physics.add.staticGroup();
+    for (const x of LEVEL.coins) {
+      const coin = coins.create(x, LEVEL.coinY, "coin", COIN.frame);
+      (coin.body as Physics.Arcade.StaticBody).setSize(
+        COIN.body.width,
+        COIN.body.height,
+      );
+    }
+    return coins;
+  }
+
+  private createGroundBottles() {
+    const bottles = this.physics.add.staticGroup();
+    LEVEL.bottles.forEach((x, index) => {
+      const frame = GROUND_BOTTLE.frames[index % GROUND_BOTTLE.frames.length];
+      const bottle = bottles.create(x, GROUND_Y, "bottle", frame);
+      bottle.setOrigin(0.5, 1).refreshBody();
+      (bottle.body as Physics.Arcade.StaticBody).setSize(
+        GROUND_BOTTLE.body.width,
+        GROUND_BOTTLE.body.height,
+      );
+    });
+    return bottles;
+  }
+
+  private createChickens() {
+    const chickens = this.physics.add.group({ allowGravity: false });
+    for (const { kind, x } of LEVEL.chickens) {
+      const chicken = new Chicken(this, x, GROUND_Y, kind);
+      chickens.add(chicken);
+      chicken.spawn();
+    }
+    return chickens;
+  }
+
+  private collectCoin(coin: Physics.Arcade.Sprite) {
+    coin.disableBody(true, true);
+    this.emitEvents(this.round.collectCoin());
+  }
+
+  private collectBottle(bottle: Physics.Arcade.Sprite) {
+    const events = this.round.collectBottle();
+    if (events.length > 0) bottle.disableBody(true, true);
+    this.emitEvents(events);
+  }
+
+  private touchChicken(chicken: Chicken) {
+    if (this.round.lost) return;
+    const pepeBody = this.pepe.body;
+    const stomp = isStomp(
+      {
+        pepePreviousBottom: pepeBody.prev.y + pepeBody.height,
+        pepeVelocityY: pepeBody.velocity.y,
+        enemyTop: chicken.body.top,
+      },
+      RULES.stompTolerance,
+    );
+    if (stomp) {
+      if (chicken.defeat()) this.emitEvents(["chicken-defeated"]);
+      return;
+    }
+
+    const events = this.round.hitPepe(this.elapsed);
+    if (events.includes("pepe-died")) this.pepe.die();
+    else if (events.includes("pepe-hit")) this.pepe.hurt();
+    this.emitEvents(events);
+  }
+
+  private throwBottle() {
+    const events = this.round.throwBottle();
+    if (events.length === 0) return;
+    const { x, y } = this.pepe.throwOrigin;
+    const bottle = new ThrownBottle(this, x, y);
+    this.thrownBottles.add(bottle);
+    bottle.launch(this.pepe.facing);
+    this.emitEvents(events);
+  }
+
+  private splash(bottle: ThrownBottle) {
+    if (bottle.splash()) this.emitEvents(["bottle-splashed"]);
+  }
+
+  private hitChicken(bottle: ThrownBottle, chicken: Chicken) {
+    if (!bottle.splash()) return;
+    const events: GameEvent[] = ["bottle-splashed"];
+    if (chicken.defeat()) events.push("chicken-defeated");
+    this.emitEvents(events);
+  }
+
+  private emitEvents(events: readonly GameEvent[]) {
+    for (const event of events) this.events.emit(GAME_EVENT, event);
   }
 }
 
-function demoInput(elapsed: number): PepeInput {
+function demoInput(elapsed: number): PlayerInput {
   const walkingRight = elapsed % 8000 < 4000;
   return {
     left: !walkingRight,
     right: walkingRight,
     jump: elapsed % 2000 < 50,
+    throw: false,
   };
 }
 

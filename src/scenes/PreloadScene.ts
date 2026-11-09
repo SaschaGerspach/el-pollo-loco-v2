@@ -2,6 +2,7 @@ import { Scene } from "phaser";
 import { ATLAS_PATH, ATLASES } from "../config/assets";
 import { BACKGROUND_LAYERS, SKY } from "../config/background";
 import { GAME_HEIGHT, GAME_WIDTH } from "../config/display";
+import { registerAnimations } from "../objects/animations";
 
 const BAR_WIDTH = GAME_WIDTH / 2;
 const BAR_HEIGHT = GAME_HEIGHT / 40;
@@ -34,6 +35,7 @@ export class PreloadScene extends Scene {
   }
 
   create() {
+    registerAnimations(this.anims);
     this.scene.start("game");
   }
 }

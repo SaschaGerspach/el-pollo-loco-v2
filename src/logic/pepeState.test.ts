@@ -8,6 +8,8 @@ const standing: PepeConditions = {
   moving: false,
   idleTime: 0,
   landingFinished: false,
+  hurt: false,
+  dead: false,
 };
 
 describe("nextPepeState", () => {
@@ -48,5 +50,24 @@ describe("nextPepeState", () => {
     expect(nextPepeState("land", moving, LONG_IDLE_DELAY)).toBe("land");
     const finished = { ...moving, landingFinished: true };
     expect(nextPepeState("land", finished, LONG_IDLE_DELAY)).toBe("walk");
+  });
+
+  test("shows the hit on the ground and in the air", () => {
+    const hurt = { ...standing, hurt: true };
+    expect(nextPepeState("walk", hurt, LONG_IDLE_DELAY)).toBe("hurt");
+    const hurtInAir = { ...hurt, onGround: false };
+    expect(nextPepeState("jump", hurtInAir, LONG_IDLE_DELAY)).toBe("hurt");
+  });
+
+  test("continues normally after the hit", () => {
+    expect(nextPepeState("hurt", standing, LONG_IDLE_DELAY)).toBe("idle");
+    const inAir = { ...standing, onGround: false };
+    expect(nextPepeState("hurt", inAir, LONG_IDLE_DELAY)).toBe("jump");
+  });
+
+  test("stays dead whatever happens", () => {
+    const dead = { ...standing, dead: true, moving: true, hurt: true };
+    expect(nextPepeState("walk", dead, LONG_IDLE_DELAY)).toBe("dead");
+    expect(nextPepeState("dead", dead, LONG_IDLE_DELAY)).toBe("dead");
   });
 });
