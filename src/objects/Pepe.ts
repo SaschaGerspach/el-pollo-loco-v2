@@ -62,16 +62,16 @@ export class Pepe extends Physics.Arcade.Sprite {
     this.dead = true;
   }
 
+  // Returns true when Pepe jumps off in this frame.
   control(input: PlayerInput, delta: number) {
     // touching.down is also set by overlaps such as coins; only solid ground sets blocked.down.
     const onGround = this.body.onFloor();
     const direction = this.dead ? 0 : Number(input.right) - Number(input.left);
+    const jumps = !this.dead && input.jump && onGround;
 
     this.setVelocityX(direction * PEPE.walkSpeed);
     if (direction !== 0) this.setFlipX(direction < 0);
-    if (!this.dead && input.jump && onGround) {
-      this.setVelocityY(-PEPE.jumpVelocity);
-    }
+    if (jumps) this.setVelocityY(-PEPE.jumpVelocity);
 
     this.idleTime = direction !== 0 || input.jump ? 0 : this.idleTime + delta;
     const next = nextPepeState(
@@ -92,6 +92,7 @@ export class Pepe extends Physics.Arcade.Sprite {
     } else if (next === "jump" && this.body.velocity.y >= 0) {
       this.play(key("fall"), true);
     }
+    return jumps;
   }
 
   private enter(state: PepeState) {

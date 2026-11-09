@@ -1,4 +1,5 @@
 import { Cameras, type Physics, Scene } from "phaser";
+import { GameAudio } from "../audio/GameAudio";
 import { GAME_HEIGHT, GAME_WIDTH } from "../config/display";
 import { ENDBOSS } from "../config/endboss";
 import { COIN, GROUND_BOTTLE } from "../config/items";
@@ -28,6 +29,7 @@ export class GameScene extends Scene {
   private pepe!: Pepe;
   private boss!: Endboss;
   private controls!: Controls;
+  private audio!: GameAudio;
   private round!: Round;
   private chickens!: Physics.Arcade.Group;
   private thrownBottles!: Physics.Arcade.Group;
@@ -119,6 +121,7 @@ export class GameScene extends Scene {
     );
 
     this.controls = new Controls(this);
+    this.audio = new GameAudio(this);
     this.scene.launch("ui");
 
     if (DEBUG) {
@@ -132,10 +135,11 @@ export class GameScene extends Scene {
     this.elapsed += delta;
     const keyboardInput = this.controls.read();
     const input = DEBUG_DEMO ? demoInput(this.elapsed) : keyboardInput;
-    this.pepe.control(input, delta);
+    if (this.pepe.control(input, delta)) this.emitEvents(["pepe-jumped"]);
     if (input.throw) this.throwBottle();
     this.boss.step(this.pepe, delta);
     this.frameCamera(delta);
+    this.audio.setRunning(this.pepe.currentState === "walk");
 
     if (this.debugOverlay) {
       const fps = Math.round(this.game.loop.actualFps);
@@ -149,7 +153,7 @@ export class GameScene extends Scene {
       this.debugOverlay.textContent =
         `fps ${fps}  x ${Math.round(x)}  y ${Math.round(y)}  ${currentState}  t ${time}` +
         `  hp ${health}  bottles ${bottles}  coins ${coins}/${totalCoins}  chickens ${chickens}` +
-        `  boss ${boss}`;
+        `  boss ${boss}  sound ${this.sound.mute ? "off" : "on"}`;
     }
   }
 
@@ -270,6 +274,7 @@ export class GameScene extends Scene {
   // The round goes along, so listeners can show its current values.
   private emitEvents(events: readonly GameEvent[]) {
     for (const event of events) {
+      this.audio.play(event);
       this.events.emit(GAME_EVENT, event, this.round);
     }
   }

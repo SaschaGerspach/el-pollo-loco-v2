@@ -1,5 +1,6 @@
 // Everything that happens in a round and that the UI or sound may react to.
 export type GameEvent =
+  | "pepe-jumped"
   | "pepe-hit"
   | "pepe-died"
   | "coin-collected"

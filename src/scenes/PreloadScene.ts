@@ -1,5 +1,8 @@
 import { Scene } from "phaser";
+import { soundUrls } from "../audio/GameAudio";
+import { loadMuted } from "../audio/mute";
 import { ATLAS_PATH, ATLASES } from "../config/assets";
+import { MUSIC, SOUNDS, type SoundKey } from "../config/audio";
 import { BACKGROUND_LAYERS, SKY } from "../config/background";
 import { GAME_HEIGHT, GAME_WIDTH } from "../config/display";
 import { SCREEN_IMAGES, UI_FONT } from "../config/ui";
@@ -42,10 +45,14 @@ export class PreloadScene extends Scene {
     }
     // The CSS declaration alone would let canvas text render once with a fallback font.
     this.load.font(UI_FONT.key, UI_FONT.path, "woff2");
+    for (const key of Object.keys(SOUNDS) as SoundKey[]) {
+      if (key !== MUSIC) this.load.audio(key, soundUrls(key));
+    }
   }
 
   create() {
     registerAnimations(this.anims);
+    this.sound.mute = loadMuted();
     this.scene.start("start");
   }
 }

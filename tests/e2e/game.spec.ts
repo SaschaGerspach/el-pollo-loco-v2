@@ -269,3 +269,19 @@ test("the legal notice opens above the start screen", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 });
+
+test("turning the sound off survives a reload", async ({ page }) => {
+  await page.goto("/?debug");
+  const { x, y } = START_SCREEN.sound;
+  // The toggle is right-aligned at x; clicking until the setting is stored also waits for loading.
+  await expect
+    .poll(async () => {
+      await clickGame(page, x - 80, y);
+      return page.evaluate(() => localStorage.getItem("el-pollo-loco:muted"));
+    })
+    .toBe("true");
+
+  await page.reload();
+  await startGame(page);
+  await expect(page.locator("#debug")).toContainText("sound off");
+});
