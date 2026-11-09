@@ -1,5 +1,6 @@
 import { AUTO, Game, Scale } from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH } from "./config/display";
+import { PreloadScene } from "./scenes/PreloadScene";
 
 new Game({
   type: AUTO,
@@ -9,4 +10,5 @@ new Game({
     mode: Scale.FIT,
     autoCenter: Scale.CENTER_BOTH,
   },
+  scene: [PreloadScene],
 });
