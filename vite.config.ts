@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   server: {
@@ -7,5 +7,8 @@ export default defineConfig({
     strictPort: true,
     // File change events from a Windows bind mount do not reach the container.
     watch: { usePolling: true },
+  },
+  test: {
+    include: ["src/**/*.test.ts"],
   },
 });
