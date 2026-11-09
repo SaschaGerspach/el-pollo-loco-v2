@@ -1,6 +1,6 @@
 import { Input, Scene } from "phaser";
 import { CONTROLS } from "../config/controls";
-import { DEBUG } from "../config/debug";
+import { DEBUG, DEBUG_DEMO } from "../config/debug";
 import { GAME_HEIGHT, GAME_WIDTH } from "../config/display";
 import { PEPE } from "../config/pepe";
 import {
@@ -10,7 +10,7 @@ import {
   LEVEL_WIDTH,
 } from "../config/world";
 import { ParallaxBackground } from "../objects/ParallaxBackground";
-import { Pepe } from "../objects/Pepe";
+import { Pepe, type PepeInput } from "../objects/Pepe";
 
 type Keys = Record<keyof typeof CONTROLS, Input.Keyboard.Key>;
 
@@ -60,15 +60,15 @@ export class GameScene extends Scene {
   update(_time: number, delta: number) {
     this.elapsed += delta;
     const { jump } = this.keys;
-    this.pepe.control(
-      {
-        left: this.keys.left.isDown,
-        right: this.keys.right.isDown,
-        // A tap shorter than one frame only shows up as JustDown.
-        jump: Input.Keyboard.JustDown(jump) || jump.isDown,
-      },
-      delta,
-    );
+    const input: PepeInput = DEBUG_DEMO
+      ? demoInput(this.elapsed)
+      : {
+          left: this.keys.left.isDown,
+          right: this.keys.right.isDown,
+          // A tap shorter than one frame only shows up as JustDown.
+          jump: Input.Keyboard.JustDown(jump) || jump.isDown,
+        };
+    this.pepe.control(input, delta);
     this.background.update(this.cameras.main, this.elapsed);
 
     if (this.debugOverlay) {
@@ -78,6 +78,15 @@ export class GameScene extends Scene {
       this.debugOverlay.textContent = `fps ${fps}  x ${Math.round(x)}  y ${Math.round(y)}  ${currentState}  t ${time}`;
     }
   }
+}
+
+function demoInput(elapsed: number): PepeInput {
+  const walkingRight = elapsed % 8000 < 4000;
+  return {
+    left: !walkingRight,
+    right: walkingRight,
+    jump: elapsed % 2000 < 50,
+  };
 }
 
 function createDebugOverlay() {
