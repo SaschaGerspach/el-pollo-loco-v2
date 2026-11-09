@@ -7,6 +7,8 @@ const RULES: RoundRules = {
   invulnerability: 1000,
   maxBottles: 5,
   coinBonus: 20,
+  bossMaxHealth: 100,
+  bossHitDamage: 20,
 };
 
 describe("health", () => {
@@ -87,5 +89,38 @@ describe("after losing", () => {
     expect(round.collectCoin()).toEqual([]);
     expect(round.collectBottle()).toEqual([]);
     expect(round.throwBottle()).toEqual([]);
+  });
+});
+
+describe("boss", () => {
+  test("is defeated by five bottle hits", () => {
+    const round = new Round(RULES, 6);
+    for (let hit = 0; hit < 4; hit++) {
+      expect(round.hitBoss()).toEqual(["boss-hit"]);
+    }
+    expect(round.bossHealth).toBe(20);
+    expect(round.hitBoss()).toEqual(["boss-hit", "boss-died"]);
+    expect(round.won).toBe(true);
+    expect(round.hitBoss()).toEqual([]);
+  });
+
+  test("cannot hurt Pepe after the round is won", () => {
+    const round = new Round(RULES, 6);
+    for (let hit = 0; hit < 5; hit++) round.hitBoss();
+    expect(round.hitPepe(0)).toEqual([]);
+    expect(round.health).toBe(100);
+  });
+
+  test("cannot be hurt after the round is lost", () => {
+    const round = new Round({ ...RULES, maxHealth: 20 }, 6);
+    round.hitPepe(0);
+    expect(round.hitBoss()).toEqual([]);
+    expect(round.bossHealth).toBe(100);
+  });
+});
+
+describe("start bottles", () => {
+  test("can be given for testing the boss fight", () => {
+    expect(new Round(RULES, 6, 5).bottles).toBe(5);
   });
 });

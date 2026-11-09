@@ -3,9 +3,11 @@ import bottle from "../../public/assets/atlases/bottle.json";
 import chickenNormal from "../../public/assets/atlases/chicken-normal.json";
 import chickenSmall from "../../public/assets/atlases/chicken-small.json";
 import coin from "../../public/assets/atlases/coin.json";
+import endboss from "../../public/assets/atlases/endboss.json";
 import pepe from "../../public/assets/atlases/pepe.json";
 import { ANIMATIONS } from "./animations";
 import { CHICKENS, type ChickenKind } from "./chickens";
+import { ENDBOSS } from "./endboss";
 import { COIN, GROUND_BOTTLE } from "./items";
 import { PEPE } from "./pepe";
 
@@ -18,6 +20,7 @@ const ATLASES: Record<string, { textures: { frames: AtlasFrame[] }[] }> = {
   pepe,
   "chicken-normal": chickenNormal,
   "chicken-small": chickenSmall,
+  endboss,
   coin,
   bottle,
 };
@@ -76,5 +79,12 @@ describe("config matches the generated atlases", () => {
       expect(offsetX + width, kind).toBeLessThanOrEqual(w);
       expect(offsetY + height, kind).toBeLessThanOrEqual(h);
     }
+  });
+
+  test("the boss body fits the frame and is centered, so mirroring keeps it", () => {
+    const { w, h } = frames("endboss").get("walk/1")!.sourceSize;
+    const { width, height, offsetX, offsetY } = ENDBOSS.body;
+    expect(offsetY + height).toBeLessThanOrEqual(h);
+    expect(Math.abs(offsetX - (w - offsetX - width))).toBeLessThanOrEqual(1);
   });
 });

@@ -7,7 +7,12 @@ export type GameEvent =
   | "bottle-collected"
   | "bottle-thrown"
   | "bottle-splashed"
-  | "chicken-defeated";
+  | "chicken-defeated"
+  | "boss-alerted"
+  | "boss-attack"
+  | "boss-hit"
+  | "boss-died"
+  | "round-won";
 
 // Name under which the game scene emits these events.
 export const GAME_EVENT = "game-event";

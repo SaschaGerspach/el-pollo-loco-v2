@@ -5,6 +5,9 @@ export const RULES = {
   invulnerability: 1000,
   maxBottles: 5,
   coinBonus: 20,
+  // Five bottle hits defeat the boss.
+  bossMaxHealth: 100,
+  bossHitDamage: 20,
   // How far Pepe's feet may already be below an enemy's top and still count as stomping.
   stompTolerance: 20,
 } as const;

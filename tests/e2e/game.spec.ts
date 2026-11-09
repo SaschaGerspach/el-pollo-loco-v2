@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { ENDBOSS } from "../../src/config/endboss";
+import { PEPE } from "../../src/config/pepe";
 import { RULES } from "../../src/config/rules";
 import { GROUND_Y } from "../../src/config/world";
 
@@ -23,17 +25,25 @@ function collectProblems(page: Page) {
   return problems;
 }
 
-// Reads the debug overlay, which shows Pepe's position and state and the round's values.
+// Reads the debug overlay, which shows Pepe, the round's values and the boss.
 async function pepe(page: Page) {
   const text = (await page.locator("#debug").textContent()) ?? "";
-  const [, x, y, state] = text.match(/x (\d+)\s+y (\d+)\s+(\S+)/) ?? [];
+  const [, x, y, state, time] =
+    text.match(/x (\d+)\s+y (\d+)\s+(\S+)\s+t (\d+)/) ?? [];
   const [, hp, bottles] = text.match(/hp (\d+)\s+bottles (\d+)/) ?? [];
+  const [, bossState, bossHp, bossX] =
+    text.match(/boss (\S+) (\d+) x (\d+)/) ?? [];
+  const bodies = (ENDBOSS.body.width + PEPE.body.width) / 2;
   return {
     x: Number(x),
     y: Number(y),
     state,
+    time: Number(time),
     hp: Number(hp),
     bottles: Number(bottles),
+    bossState,
+    bossHp: Number(bossHp),
+    bossGap: Number(bossX) - Number(x) - bodies,
   };
 }
 
@@ -92,4 +102,67 @@ test("Pepe collects bottles, gets hurt by a chicken and throws a bottle", async 
   await expect
     .poll(async () => (await pepe(page)).bottles)
     .toBeLessThan(bottles);
+});
+
+test("a bottle thrown onto the ground splashes without errors", async ({
+  page,
+}) => {
+  const problems = collectProblems(page);
+  await startGame(page);
+
+  await page.keyboard.down("d");
+  await expect.poll(async () => (await pepe(page)).bottles).toBe(1);
+  await page.keyboard.up("d");
+  // Turn left, where no chicken can be hit, so the bottle lands on the ground.
+  await page.keyboard.press("a");
+  await page.keyboard.press("e");
+  await expect.poll(async () => (await pepe(page)).bottles).toBe(0);
+  await page.waitForTimeout(2000);
+  expect(problems).toEqual([]);
+});
+
+test("Pepe defeats the boss with five bottles", async ({ page }) => {
+  test.setTimeout(60_000);
+  const problems = collectProblems(page);
+  // Starts in front of the boss with full bottles.
+  await page.goto("/?debug&boss");
+  await expect(page.locator("#debug")).toContainText("boss");
+
+  const deadline = Date.now() + 45_000;
+  let lastThrow = -Infinity;
+  let state = await pepe(page);
+  while (state.bossState !== "dead" && Date.now() < deadline) {
+    if (state.bossState === "windup") {
+      // Dodge the charge by running away, then face the boss again.
+      await page.keyboard.down("a");
+      while (["windup", "charge"].includes((await pepe(page)).bossState)) {
+        await page.waitForTimeout(20);
+      }
+      await page.keyboard.up("a");
+      await page.keyboard.press("d");
+    } else if (
+      state.bossGap <= 600 &&
+      state.bottles > 0 &&
+      state.time - lastThrow > 900
+    ) {
+      await page.keyboard.press("e");
+      lastThrow = state.time;
+    }
+    await page.waitForTimeout(20);
+    state = await pepe(page);
+  }
+
+  expect(state.bossState).toBe("dead");
+  expect(state.bossHp).toBe(0);
+  expect(problems).toEqual([]);
+});
+
+test("Pepe loses when the boss reaches him", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/?debug&boss");
+
+  await expect
+    .poll(async () => (await pepe(page)).state, { timeout: 45_000 })
+    .toBe("dead");
+  expect((await pepe(page)).hp).toBe(0);
 });

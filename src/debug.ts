@@ -6,3 +6,6 @@ export const DEBUG = params.has("debug");
 export const DEBUG_TARGET_FPS = Number(params.get("fps")) || undefined;
 // ?demo lets Pepe walk and jump on his own, to measure performance on phones without controls.
 export const DEBUG_DEMO = params.has("demo");
+// ?boss starts Pepe this far left of the boss with full bottles, to test the boss fight.
+export const DEBUG_BOSS = params.has("boss");
+export const DEBUG_BOSS_DISTANCE = 800;

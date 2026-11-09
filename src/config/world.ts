@@ -8,5 +8,8 @@ export const GROUND_THICKNESS = 100;
 export const GRAVITY = 3516;
 // Fixed steps keep movement identical on every display; 240 Hz keeps it smooth at 120 and 144 Hz.
 export const PHYSICS_FPS = 240;
-// Screen x of Pepe's center, as in the old game (150 of 720 px).
+// Screen x of Pepe's center, as in the old game (150 of 720 px). While the boss attacks from
+// the left, Pepe moves to the same distance from the right edge.
 export const CAMERA_PEPE_SCREEN_X = 400;
+// Time constant in milliseconds for that move.
+export const CAMERA_SIDE_SWITCH_TIME = 400;
