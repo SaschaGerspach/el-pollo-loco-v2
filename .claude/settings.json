@@ -1,0 +1,30 @@
+{
+  "env": {
+    "CLAUDE_CODE_EFFORT_LEVEL": "max"
+  },
+  "permissions": {
+    "additionalDirectories": [
+      "C:\\Users\\Anwender\\OneDrive\\Dokumente\\Developer_Akademie\\Spiele\\EL_POLLO_LOCO"
+    ],
+    "deny": [
+      "Edit(//c/Users/Anwender/OneDrive/Dokumente/Developer_Akademie/Spiele/EL_POLLO_LOCO/**)",
+      "Bash(git push --force)",
+      "Bash(git push --force *)",
+      "Bash(git push * --force)",
+      "Bash(git push * --force *)",
+      "Bash(git push -f)",
+      "Bash(git push -f *)",
+      "Bash(git push * -f)",
+      "Bash(git push * -f *)",
+      "Bash(git push *--no-verify*)",
+      "Bash(git commit *--no-verify*)",
+      "Bash(rm -rf *)",
+      "Read(./.env)",
+      "Read(./.env.*)"
+    ],
+    "ask": [
+      "Bash(git push origin main)",
+      "Bash(git push origin main *)"
+    ]
+  }
+}
