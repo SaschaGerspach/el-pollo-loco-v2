@@ -1,0 +1,14 @@
+services:
+  app:
+    image: node:26-slim
+    init: true
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+
+volumes:
+  node_modules:
