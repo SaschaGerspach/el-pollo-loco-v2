@@ -13,9 +13,14 @@ new Game({
     mode: Scale.FIT,
     autoCenter: Scale.CENTER_BOTH,
   },
-  fps: DEBUG_TARGET_FPS
-    ? { target: DEBUG_TARGET_FPS, forceSetTimeOut: true }
-    : undefined,
+  fps: {
+    // By default Phaser caps the frame delta at the 60 FPS target for 120 frames after start
+    // and refocus, which slows the game down on devices running below 60 FPS.
+    panicMax: 0,
+    ...(DEBUG_TARGET_FPS
+      ? { target: DEBUG_TARGET_FPS, forceSetTimeOut: true }
+      : {}),
+  },
   physics: {
     default: "arcade",
     arcade: { gravity: { x: 0, y: GRAVITY }, fps: PHYSICS_FPS, debug: DEBUG },

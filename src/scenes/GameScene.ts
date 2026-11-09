@@ -22,6 +22,9 @@ export class GameScene extends Scene {
   // Sum of frame deltas; unlike this.time.now it stands still while the scene is paused.
   // Set in create() because a restart reuses this scene instance.
   private elapsed!: number;
+  // A tap that starts and ends between two frames never shows up in isDown, and Phaser clears
+  // JustDown on key up, so the key's down event marks it until the next update.
+  private jumpPressed!: boolean;
 
   constructor() {
     super("game");
@@ -29,6 +32,7 @@ export class GameScene extends Scene {
 
   create() {
     this.elapsed = 0;
+    this.jumpPressed = false;
     this.background = new ParallaxBackground(this);
     this.physics.world.setBounds(0, 0, LEVEL_WIDTH, GAME_HEIGHT);
 
@@ -57,6 +61,13 @@ export class GameScene extends Scene {
     );
 
     this.keys = this.input.keyboard!.addKeys(CONTROLS) as Keys;
+    const markJump = () => {
+      this.jumpPressed = true;
+    };
+    this.keys.jump.on(Input.Keyboard.Events.DOWN, markJump);
+    this.events.once("shutdown", () =>
+      this.keys.jump.off(Input.Keyboard.Events.DOWN, markJump),
+    );
 
     if (DEBUG) {
       const overlay = createDebugOverlay();
@@ -67,14 +78,14 @@ export class GameScene extends Scene {
 
   update(_time: number, delta: number) {
     this.elapsed += delta;
-    const { jump } = this.keys;
+    const jump = this.jumpPressed || this.keys.jump.isDown;
+    this.jumpPressed = false;
     const input: PepeInput = DEBUG_DEMO
       ? demoInput(this.elapsed)
       : {
           left: this.keys.left.isDown,
           right: this.keys.right.isDown,
-          // A tap shorter than one frame only shows up as JustDown.
-          jump: Input.Keyboard.JustDown(jump) || jump.isDown,
+          jump,
         };
     this.pepe.control(input, delta);
 

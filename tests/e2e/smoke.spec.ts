@@ -1,27 +1,66 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { GROUND_Y } from "../../src/config/world";
 
-test("game starts without console errors", async ({ page }) => {
+function collectProblems(page: Page) {
   const problems: string[] = [];
   page.on("console", (message) => {
-    const text = message.text();
-    // Phaser reports missing textures and frames only as warnings.
-    const missingAsset = /not found|missing/i.test(text);
+    // Software rendering in headless Chromium reports GPU stalls as warnings.
+    const driverNoise = message.text().includes("GL Driver Message");
     if (
       message.type() === "error" ||
-      (message.type() === "warning" && missingAsset)
+      (message.type() === "warning" && !driverNoise)
     ) {
-      problems.push(text);
+      problems.push(message.text());
     }
   });
   page.on("pageerror", (error) => problems.push(error.message));
   page.on("response", (response) => {
-    if (response.status() >= 400)
+    if (response.status() >= 400) {
       problems.push(`${response.status()} ${response.url()}`);
+    }
   });
+  return problems;
+}
 
+async function pepe(page: Page) {
+  const text = (await page.locator("#debug").textContent()) ?? "";
+  const [, x, y, state] = text.match(/x (\d+)\s+y (\d+)\s+(\S+)/) ?? [];
+  return { x: Number(x), y: Number(y), state };
+}
+
+async function startGame(page: Page) {
   await page.goto("/?debug");
-
   // The canvas exists right after boot, so wait until the game scene is running.
   await expect(page.locator("#debug")).toContainText("idle");
+}
+
+test("game starts without console errors", async ({ page }) => {
+  const problems = collectProblems(page);
+  await startGame(page);
+
+  expect((await pepe(page)).y).toBe(GROUND_Y);
   expect(problems).toEqual([]);
+});
+
+test("Pepe walks and jumps, even on a tap within one frame", async ({
+  page,
+}) => {
+  await startGame(page);
+  const start = await pepe(page);
+
+  await page.keyboard.down("d");
+  await expect.poll(async () => (await pepe(page)).x).toBeGreaterThan(start.x);
+  await page.keyboard.up("d");
+  await expect.poll(async () => (await pepe(page)).state).toBe("idle");
+
+  // Dispatched in one task, so keydown and keyup arrive before the next frame.
+  await page.evaluate(() => {
+    const init = { key: " ", code: "Space", keyCode: 32 };
+    window.dispatchEvent(new KeyboardEvent("keydown", init));
+    window.dispatchEvent(new KeyboardEvent("keyup", init));
+  });
+  await expect.poll(async () => (await pepe(page)).y).toBeLessThan(GROUND_Y);
+  await expect
+    .poll(async () => (await pepe(page)).y, { timeout: 15_000 })
+    .toBe(GROUND_Y);
 });
