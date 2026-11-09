@@ -13,7 +13,7 @@ Neubau des Browser-Jump-'n'-Run „El Pollo Loco“ mit Phaser, TypeScript und V
 - Nur lesend verwenden (Assets, Spielregeln). Dort nichts ändern.
 
 ## Feste Entscheidungen
-- Interne Auflösung 1920×1080; Wechsel auf 1280×720 nur nach der Handy-Messung in Phase 4.
+- Interne Auflösung 1920×1080, in Phase 4 auf dem iPhone 11 mit 60 FPS bestätigt.
 - Entwicklung über Docker Compose (Vite mit Polling, `node_modules` als eigenes Volume), npm.
 - Alle Spielwerte zentral in `src/config/`.
 - Kein Leben-System: Gesundheit 0 bedeutet verloren.
