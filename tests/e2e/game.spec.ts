@@ -1,10 +1,22 @@
-import { expect, test, type Page } from "@playwright/test";
+import {
+  devices,
+  expect,
+  test,
+  type CDPSession,
+  type Page,
+} from "@playwright/test";
+import type { Action } from "../../src/config/controls";
 import { GAME_WIDTH } from "../../src/config/display";
 import { ENDBOSS } from "../../src/config/endboss";
 import { LEVEL } from "../../src/config/level";
 import { PEPE } from "../../src/config/pepe";
 import { RULES } from "../../src/config/rules";
-import { PAUSE_MENU, START_SCREEN } from "../../src/config/ui";
+import {
+  HUD,
+  PAUSE_MENU,
+  START_SCREEN,
+  TOUCH_BUTTONS,
+} from "../../src/config/ui";
 import { GROUND_Y } from "../../src/config/world";
 
 // The CI runner renders in software, so a boss fight takes far longer there than locally.
@@ -58,24 +70,60 @@ async function pepe(page: Page) {
   };
 }
 
-// Clicks a point given in game coordinates; the canvas is scaled to the window.
-async function clickGame(page: Page, x: number, y: number) {
+// Turns game coordinates into page coordinates; the canvas is scaled to the window.
+async function toPage(page: Page, x: number, y: number) {
   const box = (await page.locator("canvas").boundingBox())!;
   const scale = box.width / GAME_WIDTH;
-  await page.mouse.click(box.x + x * scale, box.y + y * scale);
+  return { x: box.x + x * scale, y: box.y + y * scale };
 }
 
-async function startGame(page: Page, url = "/?debug") {
+async function clickGame(page: Page, x: number, y: number) {
+  const point = await toPage(page, x, y);
+  await page.mouse.click(point.x, point.y);
+}
+
+async function tapGame(page: Page, x: number, y: number) {
+  const point = await toPage(page, x, y);
+  await page.touchscreen.tap(point.x, point.y);
+}
+
+// Keeps one finger on each given touch button until the next call; Playwright itself can only
+// tap. Chromium adds or lifts the fingers that changed since the previous call.
+async function touchButtons(page: Page, cdp: CDPSession, actions: Action[]) {
+  const touchPoints = await Promise.all(
+    actions.map(async (action, index) => {
+      const { x, y } = TOUCH_BUTTONS.buttons[action];
+      return { ...(await toPage(page, x, y)), id: index + 1 };
+    }),
+  );
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: touchPoints.length > 0 ? "touchStart" : "touchEnd",
+    touchPoints,
+  });
+}
+
+async function startGame(page: Page, url = "/?debug", press = clickGame) {
   await page.goto(url);
   const { x, y } = START_SCREEN.playButton;
   // Clicks Play until the start screen has loaded and the game scene runs.
   await expect
     .poll(async () => {
-      await clickGame(page, x, y);
+      await press(page, x, y);
       return page.locator("#debug").count();
     })
     .toBe(1);
   await expect(page.locator("#debug")).toContainText(" t ");
+}
+
+// The game clock stands still while the game scene is paused.
+async function expectPaused(page: Page) {
+  await expect
+    .poll(async () => {
+      const { time } = await pepe(page);
+      await page.waitForTimeout(500);
+      return (await pepe(page)).time - time;
+    })
+    .toBe(0);
 }
 
 async function expectFreshRound(page: Page, startX: number = PEPE.startX) {
@@ -284,4 +332,133 @@ test("turning the sound off survives a reload", async ({ page }) => {
   await page.reload();
   await startGame(page);
   await expect(page.locator("#debug")).toContainText("sound off");
+});
+
+test("the fullscreen switch enters and leaves fullscreen", async ({ page }) => {
+  const problems = collectProblems(page);
+  await page.goto("/");
+  const { x, y } = START_SCREEN.fullscreen;
+  const isFullscreen = () =>
+    page.evaluate(() => document.fullscreenElement !== null);
+  // The switch is left-aligned at x. Waiting after each click keeps a slow switch from being
+  // clicked twice, and clicking until it reacts waits for the start screen.
+  await expect
+    .poll(
+      async () => {
+        await clickGame(page, x + 100, y);
+        return page
+          .waitForFunction(() => document.fullscreenElement !== null, null, {
+            timeout: 3000,
+          })
+          .then(
+            () => true,
+            () => false,
+          );
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(true);
+
+  await clickGame(page, x + 100, y);
+  await expect.poll(isFullscreen).toBe(false);
+  expect(problems).toEqual([]);
+});
+
+test("the web app manifest and the page icons load", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/");
+  const href = await page.locator('link[rel="manifest"]').getAttribute("href");
+  const manifestUrl = new URL(href!, page.url());
+  const manifest = await (await request.get(manifestUrl.href)).json();
+  const icons: string[] = [
+    ...manifest.icons.map(
+      (icon: { src: string }) => new URL(icon.src, manifestUrl).href,
+    ),
+    ...(await page
+      .locator('link[rel="icon"], link[rel="apple-touch-icon"]')
+      .evaluateAll((links) =>
+        links.map((link) => (link as HTMLLinkElement).href),
+      )),
+  ];
+  expect(icons).toHaveLength(4);
+  for (const icon of icons) {
+    // Vite answers unknown paths with index.html, so only the type tells a missing icon apart.
+    const response = await request.get(icon);
+    expect(response.headers()["content-type"], icon).toBe("image/png");
+  }
+});
+
+test.describe("on a phone", () => {
+  const { viewport, deviceScaleFactor, isMobile, hasTouch, userAgent } =
+    devices["Pixel 7 landscape"];
+  test.use({ viewport, deviceScaleFactor, isMobile, hasTouch, userAgent });
+
+  test("touch buttons walk, throw and jump with a second finger", async ({
+    page,
+  }) => {
+    const problems = collectProblems(page);
+    await startGame(page, "/?debug", tapGame);
+    const cdp = await page.context().newCDPSession(page);
+
+    // The first bottles lie between Pepe's start and the first chicken.
+    await touchButtons(page, cdp, ["right"]);
+    await expect
+      .poll(async () => (await pepe(page)).bottles)
+      .toBeGreaterThan(0);
+    await touchButtons(page, cdp, []);
+    const { bottles } = await pepe(page);
+    const { x, y } = TOUCH_BUTTONS.buttons.throw;
+    await tapGame(page, x, y);
+    await expect
+      .poll(async () => (await pepe(page)).bottles)
+      .toBeLessThan(bottles);
+
+    // Back to the left, away from the chickens, which could defeat Pepe on a slow runner.
+    await touchButtons(page, cdp, ["left"]);
+    await touchButtons(page, cdp, ["left", "jump"]);
+    await expect.poll(async () => (await pepe(page)).y).toBeLessThan(GROUND_Y);
+    // Both fingers count: Pepe keeps walking in the air.
+    const inAir = await pepe(page);
+    await expect.poll(async () => (await pepe(page)).x).toBeLessThan(inAir.x);
+    await touchButtons(page, cdp, []);
+    expect(problems).toEqual([]);
+  });
+
+  test("turning the phone upright pauses the round behind a hint", async ({
+    page,
+  }) => {
+    const problems = collectProblems(page);
+    await startGame(page, "/?debug", tapGame);
+    const hint = page.locator("#rotate-hint");
+    await expect(hint).toBeHidden();
+
+    await page.setViewportSize({
+      width: viewport.height,
+      height: viewport.width,
+    });
+    await expect(hint).toBeVisible();
+    await expect
+      .poll(() =>
+        hint
+          .locator("img")
+          .evaluate((img: HTMLImageElement) => img.naturalWidth),
+      )
+      .toBeGreaterThan(0);
+    await expectPaused(page);
+
+    await page.setViewportSize(viewport);
+    await expect(hint).toBeHidden();
+    const { time } = await pepe(page);
+    await tapGame(page, GAME_WIDTH / 2, PAUSE_MENU.firstButtonY);
+    await expect
+      .poll(async () => (await pepe(page)).time)
+      .toBeGreaterThan(time);
+
+    const { x, y } = HUD.pauseButton;
+    await tapGame(page, x, y);
+    await expectPaused(page);
+    expect(problems).toEqual([]);
+  });
 });

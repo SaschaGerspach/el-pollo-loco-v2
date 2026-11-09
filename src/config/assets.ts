@@ -11,7 +11,6 @@ export const ATLAS_SCALES = {
   bottle: 0.57,
   coin: 0.75,
   hud: 0.72,
-  ui: 1,
 } as const;
 
 export const ATLASES = Object.keys(

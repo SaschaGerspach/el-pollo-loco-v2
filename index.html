@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>El Pollo Loco</title>
+    <!-- Lets the game start from the home screen without browser bars. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="/assets/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png" />
     <style>
       @font-face {
         font-family: "Margarine";
@@ -16,6 +20,43 @@
         margin: 0;
         height: 100%;
         background: #000;
+        /* A thumb that lands next to the canvas must not select, zoom or open a callout. */
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        touch-action: none;
+      }
+
+      .rotate-hint {
+        display: none;
+      }
+
+      /* Same query as PORTRAIT_QUERY in src/config/display.ts. */
+      @media (orientation: portrait) and (pointer: coarse) {
+        .rotate-hint {
+          position: fixed;
+          inset: 0;
+          z-index: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 32px;
+          padding: 24px;
+          background: #000 url("/assets/images/desert.jpg") center / cover;
+          font:
+            40px "Margarine",
+            sans-serif;
+          color: #fff;
+          text-align: center;
+          -webkit-text-stroke: 8px #5a2d0c;
+          paint-order: stroke fill;
+        }
+
+        .rotate-hint img {
+          width: min(50vw, 256px);
+          border-radius: 22%;
+        }
       }
 
       .legal-page {
@@ -26,6 +67,8 @@
         border-radius: 12px;
         font-family: sans-serif;
         line-height: 1.5;
+        user-select: text;
+        -webkit-user-select: text;
       }
 
       .legal-page::backdrop {
@@ -56,6 +99,12 @@
   </head>
   <body>
     <script type="module" src="/src/main.ts"></script>
+
+    <!-- The text of the old game. Lazy, so landscape visitors never download the image. -->
+    <div class="rotate-hint" id="rotate-hint">
+      <img src="/assets/icons/icon-512.png" alt="" loading="lazy" />
+      <p>Please, turn your device to play!</p>
+    </div>
 
     <!-- Placeholder texts from the old game; phase 12 replaces them. -->
     <dialog id="legal-page" class="legal-page">

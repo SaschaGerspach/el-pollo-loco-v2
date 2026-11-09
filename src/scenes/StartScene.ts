@@ -8,6 +8,7 @@ import {
 import { showLegalPage } from "../legal";
 import { RoundButton, drawPlaySymbol } from "../objects/RoundButton";
 import { TextButton } from "../objects/TextButton";
+import { createFullscreenToggle } from "../objects/fullscreenToggle";
 import { createSoundToggle } from "../objects/soundToggle";
 
 export class StartScene extends Scene {
@@ -16,7 +17,7 @@ export class StartScene extends Scene {
   }
 
   create() {
-    const { playButton, controls, sound, legal } = START_SCREEN;
+    const { playButton, controls, fullscreen, sound, legal } = START_SCREEN;
     this.add.image(0, 0, SCREEN_IMAGES.start.key).setOrigin(0);
     new RoundButton(
       this,
@@ -32,6 +33,12 @@ export class StartScene extends Scene {
         fontSize: `${controls.fontSize}px`,
       })
       .setOrigin(0.5);
+    createFullscreenToggle(
+      this,
+      fullscreen.x,
+      fullscreen.y,
+      fullscreen.fontSize,
+    )?.setOrigin(0, 0.5);
     createSoundToggle(this, sound.x, sound.y, sound.fontSize).setOrigin(1, 0.5);
     new TextButton(this, legal.x, legal.y, "Legal notice", legal.fontSize, () =>
       showLegalPage("legal"),

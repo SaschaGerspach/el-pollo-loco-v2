@@ -1,6 +1,6 @@
 import { Core, type GameObjects, Input, Scene, Scenes } from "phaser";
-import { PAUSE_KEYS } from "../config/controls";
-import { GAME_HEIGHT, GAME_WIDTH } from "../config/display";
+import { PAUSE_KEYS, type Action } from "../config/controls";
+import { GAME_HEIGHT, GAME_WIDTH, PORTRAIT_QUERY } from "../config/display";
 import { RULES } from "../config/rules";
 import {
   CONTROLS_TEXT,
@@ -8,19 +8,24 @@ import {
   HUD,
   PAUSE_MENU,
   TEXT_STYLE,
+  TOUCH_BUTTONS,
 } from "../config/ui";
+import { hasTouchButtons, heldTouchButtons } from "../input/touch";
 import { GAME_EVENT, type GameEvent } from "../logic/events";
 import type { Round } from "../logic/round";
 import { RoundButton, drawPauseSymbol } from "../objects/RoundButton";
 import { StatusBar } from "../objects/StatusBar";
 import { TextButton } from "../objects/TextButton";
+import { TouchButton } from "../objects/TouchButton";
+import { createFullscreenToggle } from "../objects/fullscreenToggle";
 import { createSoundToggle } from "../objects/soundToggle";
 import type { GameScene } from "./GameScene";
 
-// Runs above the game scene: status bars, pause and the end of a round. It keeps running while
-// the game scene is paused, so it is the one that reads the pause keys.
+// Runs above the game scene: status bars, touch buttons, pause and the end of a round. It keeps
+// running while the game scene is paused, so it is the one that reads the pause keys.
 export class UIScene extends Scene {
   private bars!: Record<"health" | "bottles" | "coins" | "boss", StatusBar>;
+  private touchButtons!: Map<Action, TouchButton>;
   private pauseMenu?: GameObjects.Container;
   private roundOver!: boolean;
 
@@ -34,6 +39,7 @@ export class UIScene extends Scene {
     const game = this.scene.get("game") as GameScene;
     this.bars = this.createBars();
     this.updateBars(game.currentRound);
+    this.touchButtons = this.createTouchButtons();
     const { pauseButton } = HUD;
     new RoundButton(
       this,
@@ -47,13 +53,38 @@ export class UIScene extends Scene {
     const keys = PAUSE_KEYS.map((code) => this.input.keyboard!.addKey(code));
     const togglePause = () => this.togglePause();
     for (const key of keys) key.on(Input.Keyboard.Events.DOWN, togglePause);
+    // The rotate hint covers the game, so a round must not go on behind it.
+    const portrait = window.matchMedia(PORTRAIT_QUERY);
+    const pauseInPortrait = () => {
+      if (portrait.matches) this.pause();
+    };
+    portrait.addEventListener("change", pauseInPortrait);
     game.events.on(GAME_EVENT, this.onGameEvent, this);
     this.game.events.on(Core.Events.HIDDEN, this.pause, this);
     this.events.once(Scenes.Events.SHUTDOWN, () => {
       for (const key of keys) key.off(Input.Keyboard.Events.DOWN, togglePause);
+      portrait.removeEventListener("change", pauseInPortrait);
       game.events.off(GAME_EVENT, this.onGameEvent, this);
       this.game.events.off(Core.Events.HIDDEN, this.pause, this);
     });
+  }
+
+  update() {
+    if (this.touchButtons.size === 0) return;
+    const held = heldTouchButtons(this.input.manager.pointers);
+    for (const [action, button] of this.touchButtons) {
+      button.setPressed(held.has(action));
+    }
+  }
+
+  private createTouchButtons() {
+    const buttons = new Map<Action, TouchButton>();
+    if (!hasTouchButtons(this)) return buttons;
+    for (const action of Object.keys(TOUCH_BUTTONS.buttons) as Action[]) {
+      const { x, y, angle } = TOUCH_BUTTONS.buttons[action];
+      buttons.set(action, new TouchButton(this, x, y, angle));
+    }
+    return buttons;
   }
 
   private createBars() {
@@ -123,18 +154,18 @@ export class UIScene extends Scene {
       .text(x, PAUSE_MENU.controlsY, CONTROLS_TEXT, textStyle)
       .setOrigin(0.5)
       .setVisible(false);
-    return this.add.container(0, 0, [
-      shade,
-      title,
-      new TextButton(this, x, y(0), "Resume", fontSize, () => this.resume()),
-      new TextButton(this, x, y(1), "Restart", fontSize, () =>
+    const buttons = [
+      new TextButton(this, x, 0, "Resume", fontSize, () => this.resume()),
+      new TextButton(this, x, 0, "Restart", fontSize, () =>
         this.scene.start("game"),
       ),
-      createSoundToggle(this, x, y(2), fontSize),
-      new TextButton(this, x, y(3), "Controls", fontSize, () =>
+      createSoundToggle(this, x, 0, fontSize),
+      createFullscreenToggle(this, x, 0, fontSize),
+      new TextButton(this, x, 0, "Controls", fontSize, () =>
         controls.setVisible(!controls.visible),
       ),
-      controls,
-    ]);
+    ].filter((button) => button !== undefined);
+    buttons.forEach((button, index) => button.setY(y(index)));
+    return this.add.container(0, 0, [shade, title, ...buttons, controls]);
   }
 }

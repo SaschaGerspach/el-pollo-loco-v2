@@ -1,3 +1,4 @@
+import type { Action } from "./controls";
 import { GAME_HEIGHT, GAME_WIDTH } from "./display";
 
 const SCREENS = "assets/images/screens";
@@ -35,6 +36,7 @@ export const START_SCREEN = {
   // Below the "LOCO" of the title painted into the start image.
   playButton: { x: 1200, y: 990, radius: 62 },
   controls: { x: GAME_WIDTH / 2, y: 60, fontSize: 44 },
+  fullscreen: { x: 40, y: 60, fontSize: 44 },
   sound: { x: GAME_WIDTH - 40, y: 60, fontSize: 44 },
   legal: { x: 40, y: GAME_HEIGHT - 50, gap: 330, fontSize: 36 },
 };
@@ -48,10 +50,31 @@ export const HUD = {
   pauseButton: { x: GAME_WIDTH / 2, y: 70, radius: 44 },
 };
 
+// Shown on touch devices: walking bottom left, jumping and throwing bottom right, in the order
+// of the old game. The angle turns an arrow pointing right.
+export const TOUCH_BUTTONS = {
+  radius: 90,
+  // Half the distance between neighbouring buttons, so a thumb between them still hits one.
+  hitRadius: 105,
+  buttons: {
+    left: { x: 130, y: 950, angle: 180 },
+    right: { x: 340, y: 950, angle: 0 },
+    jump: { x: 1580, y: 950, angle: -90 },
+    throw: { x: 1790, y: 950, angle: 135 },
+  } satisfies Record<Action, { x: number; y: number; angle: number }>,
+  // The colors of the old arrows; the circle keeps them visible on the bright desert.
+  arrowColor: 0xfcd354,
+  outlineColor: 0x2c2d30,
+  circleColor: 0x000000,
+  circleAlpha: 0.3,
+  alpha: 0.6,
+  pressedAlpha: 1,
+};
+
 export const PAUSE_MENU = {
-  titleY: 280,
-  firstButtonY: 450,
-  buttonGap: 115,
+  titleY: 230,
+  firstButtonY: 380,
+  buttonGap: 105,
   titleSize: 110,
   fontSize: 64,
   controlsY: 940,
