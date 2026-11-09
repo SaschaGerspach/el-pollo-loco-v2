@@ -7,6 +7,9 @@ import { RULES } from "../../src/config/rules";
 import { PAUSE_MENU, START_SCREEN } from "../../src/config/ui";
 import { GROUND_Y } from "../../src/config/world";
 
+// The CI runner renders in software, so a boss fight takes far longer there than locally.
+const BOSS_FIGHT_TIME = 100_000;
+
 function collectProblems(page: Page) {
   const problems: string[] = [];
   page.on("console", (message) => {
@@ -153,12 +156,12 @@ test("a bottle thrown onto the ground splashes without errors", async ({
 });
 
 test("Pepe defeats the boss with five bottles", async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(BOSS_FIGHT_TIME + 20_000);
   const problems = collectProblems(page);
   // Starts in front of the boss with full bottles.
   await startGame(page, "/?debug&boss");
 
-  const deadline = Date.now() + 45_000;
+  const deadline = Date.now() + BOSS_FIGHT_TIME;
   let lastThrow = -Infinity;
   let state = await pepe(page);
   while (state.bossState !== "dead" && Date.now() < deadline) {
@@ -190,13 +193,13 @@ test("Pepe defeats the boss with five bottles", async ({ page }) => {
 test("Pepe loses when the boss reaches him, and R starts a fresh round", async ({
   page,
 }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(BOSS_FIGHT_TIME + 20_000);
   const problems = collectProblems(page);
   await startGame(page, "/?debug&boss");
   const start = await pepe(page);
 
   await expect
-    .poll(async () => (await pepe(page)).state, { timeout: 45_000 })
+    .poll(async () => (await pepe(page)).state, { timeout: BOSS_FIGHT_TIME })
     .toBe("dead");
   expect((await pepe(page)).hp).toBe(0);
 
