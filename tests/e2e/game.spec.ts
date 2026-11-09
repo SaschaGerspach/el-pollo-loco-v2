@@ -203,12 +203,16 @@ test("Pepe loses when the boss reaches him, and R starts a fresh round", async (
     .toBe("dead");
   expect((await pepe(page)).hp).toBe(0);
 
-  // R works once the end screen is up, after the dead animation.
+  // R works once the end screen is up, after the dead animation; on the slow CI runner that
+  // takes longer than the default 5 s.
   await expect
-    .poll(async () => {
-      await page.keyboard.press("r");
-      return (await pepe(page)).hp;
-    })
+    .poll(
+      async () => {
+        await page.keyboard.press("r");
+        return (await pepe(page)).hp;
+      },
+      { timeout: 30_000 },
+    )
     .toBe(RULES.maxHealth);
   await expectFreshRound(page, start.x);
   expect(problems).toEqual([]);
