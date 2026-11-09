@@ -24,7 +24,9 @@ Diese dürfen ohne Rückfrage installiert werden, jeweils in der aktuellen stabi
 Alles andere nur nach Rückfrage.
 - Laufzeit: `phaser`
 - Entwicklung: `vite`, `typescript`, `eslint`, `@eslint/js`, `typescript-eslint`,
-  `eslint-config-prettier`, `prettier`, `vitest`, `@playwright/test` (inklusive Browser-Download)
+  `eslint-config-prettier`, `prettier`, `vitest`, `@playwright/test` (inklusive Browser-Download),
+  `free-tex-packer-core` und `sharp` (Texture-Atlanten)
+- Ausnahme: `typescript` bleibt auf 6.0.x, bis `typescript-eslint` TypeScript 7 unterstützt.
 - Außerhalb von npm: offizielles Docker-Image `node` (LTS), `actions/checkout`,
   `actions/setup-node`, `lftp` per `apt` auf dem CI-Runner, lokal installiertes `ffmpeg`
 

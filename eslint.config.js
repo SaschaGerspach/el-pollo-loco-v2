@@ -7,5 +7,9 @@ export default defineConfig(
   globalIgnores(["dist"]),
   js.configs.recommended,
   tseslint.configs.recommended,
+  {
+    files: ["scripts/**/*.js"],
+    languageOptions: { globals: { console: "readonly" } },
+  },
   prettier,
 );
