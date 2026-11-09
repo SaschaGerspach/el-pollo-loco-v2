@@ -2,6 +2,7 @@ import { Scene } from "phaser";
 import { ATLAS_PATH, ATLASES } from "../config/assets";
 import { BACKGROUND_LAYERS, SKY } from "../config/background";
 import { GAME_HEIGHT, GAME_WIDTH } from "../config/display";
+import { SCREEN_IMAGES, UI_FONT } from "../config/ui";
 import { registerAnimations } from "../objects/animations";
 
 const BAR_WIDTH = GAME_WIDTH / 2;
@@ -29,13 +30,22 @@ export class PreloadScene extends Scene {
     for (const key of ATLASES) {
       this.load.multiatlas(key, `${ATLAS_PATH}/${key}.json`, ATLAS_PATH);
     }
-    for (const { key, path } of [SKY, ...BACKGROUND_LAYERS]) {
+    const { start, won, lost } = SCREEN_IMAGES;
+    for (const { key, path } of [
+      SKY,
+      ...BACKGROUND_LAYERS,
+      start,
+      ...won,
+      ...lost,
+    ]) {
       this.load.image(key, path);
     }
+    // The CSS declaration alone would let canvas text render once with a fallback font.
+    this.load.font(UI_FONT.key, UI_FONT.path, "woff2");
   }
 
   create() {
     registerAnimations(this.anims);
-    this.scene.start("game");
+    this.scene.start("start");
   }
 }

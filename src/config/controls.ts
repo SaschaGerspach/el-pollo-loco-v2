@@ -7,3 +7,7 @@ export const CONTROLS = {
 } as const satisfies Record<string, readonly string[]>;
 
 export type Action = keyof typeof CONTROLS;
+
+// Read by the UI scene, which keeps running while the game scene is paused.
+export const PAUSE_KEYS = ["P", "ESC"] as const;
+export const RESTART_KEY = "R";

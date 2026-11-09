@@ -1,7 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
+import { GAME_WIDTH } from "../../src/config/display";
 import { ENDBOSS } from "../../src/config/endboss";
+import { LEVEL } from "../../src/config/level";
 import { PEPE } from "../../src/config/pepe";
 import { RULES } from "../../src/config/rules";
+import { PAUSE_MENU, START_SCREEN } from "../../src/config/ui";
 import { GROUND_Y } from "../../src/config/world";
 
 function collectProblems(page: Page) {
@@ -30,7 +33,10 @@ async function pepe(page: Page) {
   const text = (await page.locator("#debug").textContent()) ?? "";
   const [, x, y, state, time] =
     text.match(/x (\d+)\s+y (\d+)\s+(\S+)\s+t (\d+)/) ?? [];
-  const [, hp, bottles] = text.match(/hp (\d+)\s+bottles (\d+)/) ?? [];
+  const [, hp, bottles, coins, chickens] =
+    text.match(
+      /hp (\d+)\s+bottles (\d+)\s+coins (\d+)\/\d+\s+chickens (\d+)/,
+    ) ?? [];
   const [, bossState, bossHp, bossX] =
     text.match(/boss (\S+) (\d+) x (\d+)/) ?? [];
   const bodies = (ENDBOSS.body.width + PEPE.body.width) / 2;
@@ -41,16 +47,41 @@ async function pepe(page: Page) {
     time: Number(time),
     hp: Number(hp),
     bottles: Number(bottles),
+    coins: Number(coins),
+    chickens: Number(chickens),
     bossState,
     bossHp: Number(bossHp),
     bossGap: Number(bossX) - Number(x) - bodies,
   };
 }
 
-async function startGame(page: Page) {
-  await page.goto("/?debug");
-  // The canvas exists right after boot, so wait until the game scene is running.
-  await expect(page.locator("#debug")).toContainText("idle");
+// Clicks a point given in game coordinates; the canvas is scaled to the window.
+async function clickGame(page: Page, x: number, y: number) {
+  const box = (await page.locator("canvas").boundingBox())!;
+  const scale = box.width / GAME_WIDTH;
+  await page.mouse.click(box.x + x * scale, box.y + y * scale);
+}
+
+async function startGame(page: Page, url = "/?debug") {
+  await page.goto(url);
+  const { x, y } = START_SCREEN.playButton;
+  // Clicks Play until the start screen has loaded and the game scene runs.
+  await expect
+    .poll(async () => {
+      await clickGame(page, x, y);
+      return page.locator("#debug").count();
+    })
+    .toBe(1);
+  await expect(page.locator("#debug")).toContainText(" t ");
+}
+
+async function expectFreshRound(page: Page, startX: number = PEPE.startX) {
+  const round = await pepe(page);
+  expect(round.x).toBe(startX);
+  expect(round.hp).toBe(RULES.maxHealth);
+  expect(round.coins).toBe(0);
+  expect(round.chickens).toBe(LEVEL.chickens.length);
+  expect(round.bossHp).toBe(RULES.bossMaxHealth);
 }
 
 test("game starts without console errors", async ({ page }) => {
@@ -125,8 +156,7 @@ test("Pepe defeats the boss with five bottles", async ({ page }) => {
   test.setTimeout(60_000);
   const problems = collectProblems(page);
   // Starts in front of the boss with full bottles.
-  await page.goto("/?debug&boss");
-  await expect(page.locator("#debug")).toContainText("boss");
+  await startGame(page, "/?debug&boss");
 
   const deadline = Date.now() + 45_000;
   let lastThrow = -Infinity;
@@ -157,12 +187,78 @@ test("Pepe defeats the boss with five bottles", async ({ page }) => {
   expect(problems).toEqual([]);
 });
 
-test("Pepe loses when the boss reaches him", async ({ page }) => {
+test("Pepe loses when the boss reaches him, and R starts a fresh round", async ({
+  page,
+}) => {
   test.setTimeout(60_000);
-  await page.goto("/?debug&boss");
+  const problems = collectProblems(page);
+  await startGame(page, "/?debug&boss");
+  const start = await pepe(page);
 
   await expect
     .poll(async () => (await pepe(page)).state, { timeout: 45_000 })
     .toBe("dead");
   expect((await pepe(page)).hp).toBe(0);
+
+  // R works once the end screen is up, after the dead animation.
+  await expect
+    .poll(async () => {
+      await page.keyboard.press("r");
+      return (await pepe(page)).hp;
+    })
+    .toBe(RULES.maxHealth);
+  await expectFreshRound(page, start.x);
+  expect(problems).toEqual([]);
+});
+
+test("pausing stops the game until it is resumed", async ({ page }) => {
+  await startGame(page);
+
+  await page.keyboard.press("p");
+  const paused = (await pepe(page)).time;
+  await page.waitForTimeout(1000);
+  expect((await pepe(page)).time).toBe(paused);
+
+  await page.keyboard.press("p");
+  await expect
+    .poll(async () => (await pepe(page)).time)
+    .toBeGreaterThan(paused);
+});
+
+test("restarting twice leaves nothing from the previous rounds", async ({
+  page,
+}) => {
+  const problems = collectProblems(page);
+  await startGame(page);
+
+  for (let round = 0; round < 2; round++) {
+    await page.keyboard.down("d");
+    await expect
+      .poll(async () => (await pepe(page)).bottles)
+      .toBeGreaterThan(0);
+    await page.keyboard.up("d");
+
+    await page.keyboard.press("p");
+    const restart = PAUSE_MENU.firstButtonY + PAUSE_MENU.buttonGap;
+    await clickGame(page, GAME_WIDTH / 2, restart);
+    await expect.poll(async () => (await pepe(page)).bottles).toBe(0);
+    await expectFreshRound(page);
+    await expect(page.locator("#debug")).toHaveCount(1);
+  }
+  expect(problems).toEqual([]);
+});
+
+test("the legal notice opens above the start screen", async ({ page }) => {
+  await page.goto("/");
+  const { x, y } = START_SCREEN.legal;
+  const dialog = page.locator("#legal-page");
+  await expect
+    .poll(async () => {
+      await clickGame(page, x + 60, y);
+      return dialog.isVisible();
+    })
+    .toBe(true);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
 });

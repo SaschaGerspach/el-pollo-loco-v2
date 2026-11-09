@@ -40,6 +40,10 @@ export class GameScene extends Scene {
     super("game");
   }
 
+  get currentRound(): Round {
+    return this.round;
+  }
+
   create() {
     this.elapsed = 0;
     this.round = new Round(
@@ -115,6 +119,7 @@ export class GameScene extends Scene {
     );
 
     this.controls = new Controls(this);
+    this.scene.launch("ui");
 
     if (DEBUG) {
       const overlay = createDebugOverlay();
@@ -262,8 +267,11 @@ export class GameScene extends Scene {
     this.emitEvents(events);
   }
 
+  // The round goes along, so listeners can show its current values.
   private emitEvents(events: readonly GameEvent[]) {
-    for (const event of events) this.events.emit(GAME_EVENT, event);
+    for (const event of events) {
+      this.events.emit(GAME_EVENT, event, this.round);
+    }
   }
 }
 
