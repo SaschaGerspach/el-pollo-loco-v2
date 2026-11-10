@@ -36,10 +36,10 @@ export const TOUCH_CONTROLS_TEXT =
 
 export const START_SCREEN = {
   // Below the "LOCO" of the title painted into the start image.
-  playButton: { x: 1200, y: 990, radius: 62 },
-  controls: { x: GAME_WIDTH / 2, y: 60, fontSize: 44 },
-  fullscreen: { x: 40, y: 60, fontSize: 44 },
-  sound: { x: GAME_WIDTH - 40, y: 60, fontSize: 44 },
+  playButton: { x: 1200, y: 1005, radius: 62 },
+  controls: { x: GAME_WIDTH / 2, y: 50, fontSize: 44 },
+  fullscreen: { x: 40, y: 50, fontSize: 44 },
+  sound: { x: GAME_WIDTH - 40, y: 50, fontSize: 44 },
   legal: { x: 40, y: GAME_HEIGHT - 50, gap: 330, fontSize: 36 },
 };
 
