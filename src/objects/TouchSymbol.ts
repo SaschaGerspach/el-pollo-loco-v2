@@ -1,5 +1,5 @@
 import { GameObjects, Math as PhaserMath, type Scene } from "phaser";
-import { TOUCH_BUTTONS } from "../config/ui";
+import { TOUCH_ZONES } from "../config/ui";
 
 // An arrow pointing right, in units of half its length.
 const ARROW = [
@@ -13,12 +13,12 @@ const ARROW = [
 ];
 
 // The old touch arrows as vector art, so they stay sharp at any size.
-export class TouchButton extends GameObjects.Graphics {
+export class TouchSymbol extends GameObjects.Graphics {
   constructor(scene: Scene, x: number, y: number, angle: number) {
     super(scene, { x, y });
     scene.add.existing(this);
     const { radius, arrowColor, outlineColor, circleColor, circleAlpha } =
-      TOUCH_BUTTONS;
+      TOUCH_ZONES;
     this.fillStyle(circleColor, circleAlpha).fillCircle(0, 0, radius);
     const halfLength = radius * 0.6;
     const points = ARROW.map(
@@ -31,6 +31,6 @@ export class TouchButton extends GameObjects.Graphics {
   }
 
   setPressed(pressed: boolean) {
-    this.setAlpha(pressed ? TOUCH_BUTTONS.pressedAlpha : TOUCH_BUTTONS.alpha);
+    this.setAlpha(pressed ? TOUCH_ZONES.pressedAlpha : TOUCH_ZONES.alpha);
   }
 }

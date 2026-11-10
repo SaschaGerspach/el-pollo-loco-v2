@@ -5,7 +5,6 @@ import {
   type CDPSession,
   type Page,
 } from "@playwright/test";
-import type { Action } from "../../src/config/controls";
 import { GAME_WIDTH } from "../../src/config/display";
 import { ENDBOSS } from "../../src/config/endboss";
 import { LEVEL } from "../../src/config/level";
@@ -15,7 +14,7 @@ import {
   HUD,
   PAUSE_MENU,
   START_SCREEN,
-  TOUCH_BUTTONS,
+  TOUCH_ZONES,
 } from "../../src/config/ui";
 import { GROUND_Y } from "../../src/config/world";
 
@@ -87,14 +86,18 @@ async function tapGame(page: Page, x: number, y: number) {
   await page.touchscreen.tap(point.x, point.y);
 }
 
-// Keeps one finger on each given touch button until the next call; Playwright itself can only
-// tap. Chromium adds or lifts the fingers that changed since the previous call.
-async function touchButtons(page: Page, cdp: CDPSession, actions: Action[]) {
+// Keeps one finger on each given point of the game until the next call; Playwright itself can
+// only tap. Chromium adds, moves or lifts the fingers that changed since the previous call.
+async function touchGame(
+  page: Page,
+  cdp: CDPSession,
+  points: { x: number; y: number }[],
+) {
   const touchPoints = await Promise.all(
-    actions.map(async (action, index) => {
-      const { x, y } = TOUCH_BUTTONS.buttons[action];
-      return { ...(await toPage(page, x, y)), id: index + 1 };
-    }),
+    points.map(async ({ x, y }, index) => ({
+      ...(await toPage(page, x, y)),
+      id: index + 1,
+    })),
   );
   await cdp.send("Input.dispatchTouchEvent", {
     type: touchPoints.length > 0 ? "touchStart" : "touchEnd",
@@ -394,35 +397,81 @@ test.describe("on a phone", () => {
   const { viewport, deviceScaleFactor, isMobile, hasTouch, userAgent } =
     devices["Pixel 7 landscape"];
   test.use({ viewport, deviceScaleFactor, isMobile, hasTouch, userAgent });
+  const { symbols, steering } = TOUCH_ZONES;
+  // On the walk zone, far enough from its edges for a push either way.
+  const thumb = { x: 600, y: 850 };
+  const push = 200;
 
-  test("touch buttons walk, throw and jump with a second finger", async ({
+  test("a thumb on the left half walks the way it is pushed, a second finger throws and jumps", async ({
     page,
   }) => {
     const problems = collectProblems(page);
     await startGame(page, "/?debug", tapGame);
     const cdp = await page.context().newCDPSession(page);
 
+    // A thumb that only lands keeps Pepe standing.
+    await touchGame(page, cdp, [thumb]);
+    const start = await pepe(page);
+    await page.waitForTimeout(500);
+    expect((await pepe(page)).x).toBe(start.x);
+
     // The first bottles lie between Pepe's start and the first chicken.
-    await touchButtons(page, cdp, ["right"]);
+    await touchGame(page, cdp, [{ ...thumb, x: thumb.x + push }]);
     await expect
       .poll(async () => (await pepe(page)).bottles)
       .toBeGreaterThan(0);
-    await touchButtons(page, cdp, []);
+    await touchGame(page, cdp, []);
     const { bottles } = await pepe(page);
-    const { x, y } = TOUCH_BUTTONS.buttons.throw;
-    await tapGame(page, x, y);
+    await tapGame(page, symbols.throw.x, symbols.throw.y);
     await expect
       .poll(async () => (await pepe(page)).bottles)
       .toBeLessThan(bottles);
 
     // Back to the left, away from the chickens, which could defeat Pepe on a slow runner.
-    await touchButtons(page, cdp, ["left"]);
-    await touchButtons(page, cdp, ["left", "jump"]);
+    const pushedLeft = { ...thumb, x: thumb.x - push };
+    await touchGame(page, cdp, [thumb]);
+    await touchGame(page, cdp, [pushedLeft]);
+    await touchGame(page, cdp, [pushedLeft, symbols.jump]);
     await expect.poll(async () => (await pepe(page)).y).toBeLessThan(GROUND_Y);
     // Both fingers count: Pepe keeps walking in the air.
     const inAir = await pepe(page);
     await expect.poll(async () => (await pepe(page)).x).toBeLessThan(inAir.x);
-    await touchButtons(page, cdp, []);
+    await touchGame(page, cdp, []);
+    expect(problems).toEqual([]);
+  });
+
+  test("a thumb from the bar beside the game turns with a short rock and keeps walking over the other zones", async ({
+    page,
+  }) => {
+    const problems = collectProblems(page);
+    await startGame(page, "/?debug", tapGame);
+    const cdp = await page.context().newCDPSession(page);
+    // The thumb steers in CSS pixels. A rock just past the trail and the dead zone turns Pepe,
+    // although it is shorter than the push before.
+    const { width } = (await page.locator("canvas").boundingBox())!;
+    const rock =
+      ((steering.trail + 2 * steering.deadZone) * GAME_WIDTH) / width;
+
+    // Left of the canvas, on the bar that the wider phone leaves beside the 16:9 game.
+    const onBar = { x: -100, y: thumb.y };
+    const pushed = { ...onBar, x: onBar.x + push };
+    await touchGame(page, cdp, [onBar]);
+    await touchGame(page, cdp, [pushed]);
+    const start = await pepe(page);
+    await expect
+      .poll(async () => (await pepe(page)).x)
+      .toBeGreaterThan(start.x);
+
+    await touchGame(page, cdp, [{ ...pushed, x: pushed.x - rock }]);
+    const turned = await pepe(page);
+    await expect.poll(async () => (await pepe(page)).x).toBeLessThan(turned.x);
+
+    // Slid over to the jump symbol, the thumb still walks instead of jumping.
+    await touchGame(page, cdp, [symbols.jump]);
+    const slid = await pepe(page);
+    await expect.poll(async () => (await pepe(page)).x).toBeGreaterThan(slid.x);
+    expect((await pepe(page)).y).toBe(GROUND_Y);
+    await touchGame(page, cdp, []);
     expect(problems).toEqual([]);
   });
 
@@ -430,7 +479,8 @@ test.describe("on a phone", () => {
     page,
   }) => {
     const problems = collectProblems(page);
-    await startGame(page, "/?debug", tapGame);
+    // Pepe starts with full bottles, so a throw after resuming would show.
+    await startGame(page, "/?debug&boss", tapGame);
     const hint = page.locator("#rotate-hint");
     await expect(hint).toBeHidden();
 
@@ -450,11 +500,13 @@ test.describe("on a phone", () => {
 
     await page.setViewportSize(viewport);
     await expect(hint).toBeHidden();
-    const { time } = await pepe(page);
-    await tapGame(page, GAME_WIDTH / 2, PAUSE_MENU.firstButtonY);
+    const { time, bottles } = await pepe(page);
+    // Resume lies in the throw zone, but the finger landed while the round was paused.
+    await tapGame(page, GAME_WIDTH / 2 + 40, PAUSE_MENU.firstButtonY);
     await expect
       .poll(async () => (await pepe(page)).time)
-      .toBeGreaterThan(time);
+      .toBeGreaterThan(time + 300);
+    expect((await pepe(page)).bottles).toBe(bottles);
 
     const { x, y } = HUD.pauseButton;
     await tapGame(page, x, y);

@@ -1,6 +1,6 @@
 import { AUTO, Game, Scale } from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH } from "./config/display";
-import { TOUCH_BUTTONS } from "./config/ui";
+import { TOUCH_ZONES } from "./config/ui";
 import { GRAVITY, PHYSICS_FPS } from "./config/world";
 import { DEBUG, DEBUG_TARGET_FPS } from "./debug";
 import { EndScene } from "./scenes/EndScene";
@@ -23,8 +23,9 @@ const game = new Game({
     fullscreenTarget: document.documentElement,
   },
   input: {
-    // Phaser tracks a single finger by default; this way all touch buttons can be held at once.
-    activePointers: Object.keys(TOUCH_BUTTONS.buttons).length,
+    // Phaser tracks a single finger by default. Fingers on the touch zones take up pointers too,
+    // so it needs one per zone and one more for the pause button.
+    activePointers: TOUCH_ZONES.zones.length + 1,
   },
   fps: {
     // By default Phaser caps the frame delta at the 60 FPS target for 120 frames after start

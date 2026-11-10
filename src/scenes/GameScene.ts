@@ -46,6 +46,11 @@ export class GameScene extends Scene {
     return this.round;
   }
 
+  // For the UI scene, which moves the stick to the walking thumb and lights up what is held.
+  touchState() {
+    return this.controls.touchState();
+  }
+
   create() {
     this.elapsed = 0;
     this.round = new Round(

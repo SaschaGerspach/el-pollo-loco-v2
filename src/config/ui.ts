@@ -1,4 +1,3 @@
-import type { Action } from "./controls";
 import { GAME_HEIGHT, GAME_WIDTH } from "./display";
 
 const SCREENS = "assets/images/screens";
@@ -50,24 +49,43 @@ export const HUD = {
   pauseButton: { x: GAME_WIDTH / 2, y: 70, radius: 44 },
 };
 
-// Shown on touch devices: walking bottom left, jumping and throwing bottom right, in the order
-// of the old game. The angle turns an arrow pointing right.
-export const TOUCH_BUTTONS = {
-  radius: 90,
-  // Half the distance between neighbouring buttons, so a thumb between them still hits one.
-  hitRadius: 105,
-  buttons: {
-    left: { x: 130, y: 950, angle: 180 },
-    right: { x: 340, y: 950, angle: 0 },
-    jump: { x: 1580, y: 950, angle: -90 },
-    throw: { x: 1790, y: 950, angle: 135 },
-  } satisfies Record<Action, { x: number; y: number; angle: number }>,
+// On touch devices the screen below the pause button is split into zones over its full height:
+// a thumb on the left half walks, one on the right half jumps on the outside, where the thumb
+// rests, or throws further in. A finger keeps the job of the zone it landed in.
+export const TOUCH_ZONES = {
+  top: HUD.pauseButton.y + 2 * HUD.pauseButton.radius,
+  // Each zone ends where the next begins. The outer zones continue over the bars beside the
+  // canvas up to the screen edge.
+  zones: [
+    { zone: "walk", until: GAME_WIDTH / 2 },
+    { zone: "throw", until: (GAME_WIDTH * 3) / 4 },
+    { zone: "jump", until: Infinity },
+  ] as const,
+  // The walking thumb steers from where it landed, so it never has to find a border: pushed to
+  // one side, Pepe walks that way until it lifts. In CSS pixels, which have about the same size
+  // on every phone, unlike game pixels.
+  steering: {
+    // A thumb shifts a little while pressing down; Pepe walks once it moved this far.
+    deadZone: 10,
+    // The point the thumb steers from trails it at this distance, so however far it pushed, a
+    // rock back of this plus the dead zone turns Pepe around.
+    trail: 20,
+  },
+  // A ring with an arrow on each side shows the stick. It moves to the walking thumb; without
+  // one it waits smaller in the corner, where it leaves Pepe uncovered.
+  ring: { x: 150, y: 950, radius: 150, lineWidth: 8, restScale: 0.7 },
+  // The symbols of the other zones. The angle turns an arrow pointing right.
+  symbols: {
+    throw: { x: (GAME_WIDTH * 5) / 8, y: 950, angle: 135 },
+    jump: { x: (GAME_WIDTH * 7) / 8, y: 950, angle: -90 },
+  },
+  radius: 60,
   // The colors of the old arrows; the circle keeps them visible on the bright desert.
   arrowColor: 0xfcd354,
   outlineColor: 0x2c2d30,
   circleColor: 0x000000,
   circleAlpha: 0.3,
-  alpha: 0.6,
+  alpha: 0.35,
   pressedAlpha: 1,
 };
 

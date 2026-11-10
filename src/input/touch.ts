@@ -1,29 +1,31 @@
-import type { Input, Scene } from "phaser";
-import type { Action } from "../config/controls";
-import { TOUCH_BUTTONS } from "../config/ui";
+import type { Scene } from "phaser";
+import { TOUCH_ZONES } from "../config/ui";
 
-const ACTIONS = Object.keys(TOUCH_BUTTONS.buttons) as Action[];
+export type TouchZone = (typeof TOUCH_ZONES.zones)[number]["zone"];
 
-// Touch buttons exist only on touch devices; the UI scene draws them, the controls read them.
-export const hasTouchButtons = (scene: Scene) =>
+// Only touch devices get zones; the UI scene draws them, the controls read them.
+export const hasTouchZones = (scene: Scene) =>
   scene.sys.game.device.input.touch;
 
-export function touchButtonAt(x: number, y: number) {
-  return ACTIONS.find((action) => {
-    const button = TOUCH_BUTTONS.buttons[action];
-    return Math.hypot(x - button.x, y - button.y) <= TOUCH_BUTTONS.hitRadius;
-  });
+// Game coordinates continue beyond the canvas, so a finger on the bars beside it gets an x below
+// 0 or above the game width and lands in an outer zone.
+export function touchZoneAt(x: number, y: number): TouchZone | undefined {
+  if (y < TOUCH_ZONES.top) return undefined;
+  return TOUCH_ZONES.zones.find((zone) => x < zone.until)?.zone;
 }
 
-// Every finger counts, so buttons can be held together and a thumb can slide from one button
-// to the next.
-export function heldTouchButtons(pointers: readonly Input.Pointer[]) {
-  const held = new Set<Action>();
-  for (const pointer of pointers) {
-    const action = pointer.isDown
-      ? touchButtonAt(pointer.x, pointer.y)
-      : undefined;
-    if (action) held.add(action);
-  }
-  return held;
+// The point a walking thumb at x steers from, after it was at anchor.
+export function trailThumb(anchor: number, x: number) {
+  const { trail } = TOUCH_ZONES.steering;
+  return Math.min(Math.max(anchor, x - trail), x + trail);
+}
+
+export function walkDirection(
+  anchor: number,
+  x: number,
+): "left" | "right" | undefined {
+  const { deadZone } = TOUCH_ZONES.steering;
+  if (x - anchor >= deadZone) return "right";
+  if (anchor - x >= deadZone) return "left";
+  return undefined;
 }

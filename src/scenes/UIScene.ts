@@ -8,24 +8,27 @@ import {
   HUD,
   PAUSE_MENU,
   TEXT_STYLE,
-  TOUCH_BUTTONS,
+  TOUCH_ZONES,
 } from "../config/ui";
-import { hasTouchButtons, heldTouchButtons } from "../input/touch";
+import { hasTouchZones } from "../input/touch";
 import { GAME_EVENT, type GameEvent } from "../logic/events";
 import type { Round } from "../logic/round";
 import { RoundButton, drawPauseSymbol } from "../objects/RoundButton";
 import { StatusBar } from "../objects/StatusBar";
 import { TextButton } from "../objects/TextButton";
-import { TouchButton } from "../objects/TouchButton";
+import { TouchStick } from "../objects/TouchStick";
+import { TouchSymbol } from "../objects/TouchSymbol";
 import { createFullscreenToggle } from "../objects/fullscreenToggle";
 import { createSoundToggle } from "../objects/soundToggle";
 import type { GameScene } from "./GameScene";
 
-// Runs above the game scene: status bars, touch buttons, pause and the end of a round. It keeps
+// Runs above the game scene: status bars, touch controls, pause and the end of a round. It keeps
 // running while the game scene is paused, so it is the one that reads the pause keys.
 export class UIScene extends Scene {
+  private gameScene!: GameScene;
   private bars!: Record<"health" | "bottles" | "coins" | "boss", StatusBar>;
-  private touchButtons!: Map<Action, TouchButton>;
+  private touchSymbols!: Map<Action, TouchSymbol>;
+  private touchStick?: TouchStick;
   private pauseMenu?: GameObjects.Container;
   private roundOver!: boolean;
 
@@ -37,9 +40,11 @@ export class UIScene extends Scene {
     this.pauseMenu = undefined;
     this.roundOver = false;
     const game = this.scene.get("game") as GameScene;
+    this.gameScene = game;
     this.bars = this.createBars();
     this.updateBars(game.currentRound);
-    this.touchButtons = this.createTouchButtons();
+    this.touchSymbols = new Map();
+    if (hasTouchZones(this)) this.createTouchControls();
     const { pauseButton } = HUD;
     new RoundButton(
       this,
@@ -70,21 +75,20 @@ export class UIScene extends Scene {
   }
 
   update() {
-    if (this.touchButtons.size === 0) return;
-    const held = heldTouchButtons(this.input.manager.pointers);
-    for (const [action, button] of this.touchButtons) {
-      button.setPressed(held.has(action));
+    if (!this.touchStick) return;
+    const state = this.gameScene.touchState();
+    this.touchStick.show(state);
+    for (const [action, symbol] of this.touchSymbols) {
+      symbol.setPressed(state.held.has(action));
     }
   }
 
-  private createTouchButtons() {
-    const buttons = new Map<Action, TouchButton>();
-    if (!hasTouchButtons(this)) return buttons;
-    for (const action of Object.keys(TOUCH_BUTTONS.buttons) as Action[]) {
-      const { x, y, angle } = TOUCH_BUTTONS.buttons[action];
-      buttons.set(action, new TouchButton(this, x, y, angle));
+  private createTouchControls() {
+    this.touchStick = new TouchStick(this);
+    for (const action of ["throw", "jump"] as const) {
+      const { x, y, angle } = TOUCH_ZONES.symbols[action];
+      this.touchSymbols.set(action, new TouchSymbol(this, x, y, angle));
     }
-    return buttons;
   }
 
   private createBars() {
