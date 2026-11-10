@@ -462,3 +462,27 @@ test.describe("on a phone", () => {
     expect(problems).toEqual([]);
   });
 });
+
+test.describe("on an iPhone", () => {
+  const { viewport, deviceScaleFactor, isMobile, hasTouch, userAgent } =
+    devices["iPhone 11 landscape"];
+  test.use({ viewport, deviceScaleFactor, isMobile, hasTouch, userAgent });
+
+  test("the game fits below Safari's toolbars", async ({ page }) => {
+    // Safari sizes 100vh as if its toolbars were hidden, as tall as the whole screen: 414 px on
+    // an iPhone 11 in landscape. Phaser measures 100vh with a ruler element on iOS, which gets
+    // that height here.
+    await page.addInitScript(() => {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync('div[style*="100vh"] { height: 414px !important; }');
+      document.adoptedStyleSheets = [sheet];
+    });
+    await page.goto("/");
+    await expect
+      .poll(async () => {
+        const box = (await page.locator("canvas").boundingBox())!;
+        return box.y + box.height;
+      })
+      .toBeLessThanOrEqual(viewport.height);
+  });
+});

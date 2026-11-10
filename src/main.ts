@@ -13,6 +13,9 @@ const game = new Game({
   type: AUTO,
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
+  // With the body as parent, Phaser measures the height on iOS as 100vh, which ignores Safari's
+  // toolbars and cuts off the bottom of the game. A fixed element has the visible size.
+  parent: "game",
   scale: {
     mode: Scale.FIT,
     autoCenter: Scale.CENTER_BOTH,
