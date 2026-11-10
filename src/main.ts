@@ -48,3 +48,9 @@ const game = new Game({
 game.scale.on(Scale.Events.ENTER_FULLSCREEN, () => {
   screen.orientation?.lock?.("landscape").catch(() => {});
 });
+
+// On a turn Phaser sizes the canvas from the page size it measured last and measures only
+// afterwards. iOS reports the turn after the page took its new size, often before Phaser measured
+// it, so the canvas kept the old size and Phaser saw nothing left to fix. Refreshing again uses the
+// new size.
+game.scale.on(Scale.Events.ORIENTATION_CHANGE, () => game.scale.refresh());

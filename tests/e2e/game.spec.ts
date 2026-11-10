@@ -537,4 +537,35 @@ test.describe("on an iPhone", () => {
       })
       .toBeLessThanOrEqual(viewport.height);
   });
+
+  test("the game fits the screen after a turn that iOS reports before Phaser measured", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const canvas = page.locator("canvas");
+    // Fitted once, so the scale manager listens for turns.
+    await expect
+      .poll(async () => (await canvas.boundingBox())?.height)
+      .toBe(viewport.height);
+
+    // iOS gives the page its new size and reports the turn before Phaser, which measures every
+    // half second, has seen that size. Both happen here in one task: the game area shrinks and
+    // the screen reports a turn.
+    await page.evaluate(() => {
+      document.getElementById("game")!.style.bottom = "100px";
+      Object.defineProperty(screen.orientation, "type", {
+        value: "portrait-primary",
+      });
+      screen.orientation.dispatchEvent(new Event("change"));
+    });
+    const area = (await page.locator("#game").boundingBox())!;
+    await expect
+      .poll(async () => {
+        const box = (await canvas.boundingBox())!;
+        return (
+          box.y >= area.y - 1 && box.y + box.height <= area.y + area.height + 1
+        );
+      })
+      .toBe(true);
+  });
 });
