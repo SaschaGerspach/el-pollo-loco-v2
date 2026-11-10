@@ -30,6 +30,9 @@ export const SCREEN_IMAGES = {
 
 export const CONTROLS_TEXT =
   "A / D walk     Space jump     E throw     P / Esc pause";
+// The touch zones without keys; the pause button explains itself.
+export const TOUCH_CONTROLS_TEXT =
+  "Left: slide to walk     Right: tap to jump or throw";
 
 export const START_SCREEN = {
   // Below the "LOCO" of the title painted into the start image.

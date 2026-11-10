@@ -3,14 +3,13 @@ import { PAUSE_KEYS, type Action } from "../config/controls";
 import { GAME_HEIGHT, GAME_WIDTH, PORTRAIT_QUERY } from "../config/display";
 import { RULES } from "../config/rules";
 import {
-  CONTROLS_TEXT,
   END_SCREEN,
   HUD,
   PAUSE_MENU,
   TEXT_STYLE,
   TOUCH_ZONES,
 } from "../config/ui";
-import { hasTouchZones } from "../input/touch";
+import { controlsText, hasTouchZones } from "../input/touch";
 import { GAME_EVENT, type GameEvent } from "../logic/events";
 import type { Round } from "../logic/round";
 import { RoundButton, drawPauseSymbol } from "../objects/RoundButton";
@@ -158,7 +157,7 @@ export class UIScene extends Scene {
       .text(x, titleY, "Paused", { ...TEXT_STYLE, fontSize: `${titleSize}px` })
       .setOrigin(0.5);
     const controls = this.add
-      .text(x, PAUSE_MENU.controlsY, CONTROLS_TEXT, textStyle)
+      .text(x, PAUSE_MENU.controlsY, controlsText(), textStyle)
       .setOrigin(0.5)
       .setVisible(false);
     const buttons = [

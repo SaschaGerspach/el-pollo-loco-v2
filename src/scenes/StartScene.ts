@@ -1,10 +1,6 @@
 import { Scene } from "phaser";
-import {
-  CONTROLS_TEXT,
-  SCREEN_IMAGES,
-  START_SCREEN,
-  TEXT_STYLE,
-} from "../config/ui";
+import { SCREEN_IMAGES, START_SCREEN, TEXT_STYLE } from "../config/ui";
+import { controlsText } from "../input/touch";
 import { showLegalPage } from "../legal";
 import { RoundButton, drawPlaySymbol } from "../objects/RoundButton";
 import { TextButton } from "../objects/TextButton";
@@ -28,7 +24,7 @@ export class StartScene extends Scene {
       () => this.scene.start("game"),
     );
     this.add
-      .text(controls.x, controls.y, CONTROLS_TEXT, {
+      .text(controls.x, controls.y, controlsText(), {
         ...TEXT_STYLE,
         fontSize: `${controls.fontSize}px`,
       })
