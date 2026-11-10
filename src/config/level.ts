@@ -2,7 +2,7 @@ import type { ChickenKind } from "./chickens";
 
 // Positions from the old level, converted with x_new = (x_old + 719) × 2.67 because the old
 // level started at x = -719. The old chickens were placed at random; here they are spread
-// over the same range. Phase 10 replaces this with a Tiled map.
+// over the same range.
 export const LEVEL = {
   chickens: [
     { kind: "chicken-normal", x: 3100 },
