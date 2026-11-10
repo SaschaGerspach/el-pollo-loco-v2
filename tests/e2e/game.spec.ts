@@ -415,7 +415,9 @@ test.describe("on a phone", () => {
   const thumb = { x: 600, y: 850 };
   const push = 200;
 
-  test("a thumb on the left half walks the way it is pushed, a second finger throws and jumps", async ({
+  // Walking and throwing, and jumping with a second finger, are two tests: in one they took close
+  // to the 30 s a test gets on the CI runner, which renders in software.
+  test("a thumb on the left half walks the way it is pushed, and a tap on the right throws", async ({
     page,
   }) => {
     const problems = collectProblems(page);
@@ -439,8 +441,17 @@ test.describe("on a phone", () => {
     await expect
       .poll(async () => (await pepe(page)).bottles)
       .toBeLessThan(bottles);
+    expect(problems).toEqual([]);
+  });
 
-    // Back to the left, away from the chickens, which could defeat Pepe on a slow runner.
+  test("a second finger jumps while the thumb keeps walking", async ({
+    page,
+  }) => {
+    const problems = collectProblems(page);
+    await startGame(page, "/?debug", tapGame);
+    const cdp = await page.context().newCDPSession(page);
+
+    // To the left, away from the chickens, which could defeat Pepe on a slow runner.
     const pushedLeft = { ...thumb, x: thumb.x - push };
     await touchGame(page, cdp, [thumb]);
     await touchGame(page, cdp, [pushedLeft]);
