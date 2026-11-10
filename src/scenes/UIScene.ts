@@ -43,7 +43,7 @@ export class UIScene extends Scene {
     this.bars = this.createBars();
     this.updateBars(game.currentRound);
     this.touchSymbols = new Map();
-    if (hasTouchZones(this)) this.createTouchControls();
+    if (hasTouchZones()) this.createTouchControls();
     const { pauseButton } = HUD;
     new RoundButton(
       this,

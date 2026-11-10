@@ -1,19 +1,16 @@
-import type { Scene } from "phaser";
 import { TOUCH_SCREEN_QUERY } from "../config/display";
 import { CONTROLS_TEXT, TOUCH_CONTROLS_TEXT, TOUCH_ZONES } from "../config/ui";
 
 export type TouchZone = (typeof TOUCH_ZONES.zones)[number]["zone"];
 
-// Only touch devices get zones; the UI scene draws them, the controls read them.
-export const hasTouchZones = (scene: Scene) =>
-  scene.sys.game.device.input.touch;
+// Only phones and tablets get zones; the UI scene draws them, the controls read them. A laptop
+// with a touch screen is played with the keys.
+export const hasTouchZones = () =>
+  window.matchMedia(TOUCH_SCREEN_QUERY).matches;
 
-// Phones and tablets explain the touch zones. A laptop with a touch screen shows the keys, which
-// its players mostly use.
+// Where the zones are, the start screen and the pause menu explain them instead of the keys.
 export const controlsText = () =>
-  window.matchMedia(TOUCH_SCREEN_QUERY).matches
-    ? TOUCH_CONTROLS_TEXT
-    : CONTROLS_TEXT;
+  hasTouchZones() ? TOUCH_CONTROLS_TEXT : CONTROLS_TEXT;
 
 // Game coordinates continue beyond the canvas, so a finger on the bars beside it gets an x below
 // 0 or above the game width and lands in an outer zone.

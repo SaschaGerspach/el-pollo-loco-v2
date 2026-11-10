@@ -53,7 +53,7 @@ export class Controls {
       });
       this.keys.set(action, keys);
     }
-    if (hasTouchZones(scene)) this.followFingers();
+    if (hasTouchZones()) this.followFingers();
   }
 
   // The thumb that landed last walks, so a second one on the walk zone takes over.
