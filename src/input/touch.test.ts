@@ -7,9 +7,9 @@ describe("touchZoneAt", () => {
   const y = 900;
 
   it("puts the stick and the symbols into their zones", () => {
-    const { ring, radius, symbols } = TOUCH_ZONES;
-    // The stick waits smaller, fully on the canvas.
-    const reach = (ring.radius + radius) * ring.restScale;
+    const { ring, symbols } = TOUCH_ZONES;
+    // The stick waits fully on the canvas.
+    const reach = ring.radius + ring.arrowRadius;
     expect(ring.x - reach).toBeGreaterThanOrEqual(0);
     expect(touchZoneAt(ring.x + reach, ring.y)).toBe("walk");
     expect(touchZoneAt(symbols.throw.x, symbols.throw.y)).toBe("throw");

@@ -72,8 +72,8 @@ export const TOUCH_ZONES = {
     trail: 20,
   },
   // A ring with an arrow on each side shows the stick. It moves to the walking thumb; without
-  // one it waits smaller in the corner, where it leaves Pepe uncovered.
-  ring: { x: 150, y: 950, radius: 150, lineWidth: 8, restScale: 0.7 },
+  // one it waits in the corner, where it leaves Pepe uncovered.
+  ring: { x: 150, y: 950, radius: 105, arrowRadius: 42, lineWidth: 6 },
   // The symbols of the other zones. The angle turns an arrow pointing right.
   symbols: {
     throw: { x: (GAME_WIDTH * 5) / 8, y: 950, angle: 135 },

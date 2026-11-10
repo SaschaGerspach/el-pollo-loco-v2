@@ -87,7 +87,10 @@ export class UIScene extends Scene {
     this.touchStick = new TouchStick(this);
     for (const action of ["throw", "jump"] as const) {
       const { x, y, angle } = TOUCH_ZONES.symbols[action];
-      this.touchSymbols.set(action, new TouchSymbol(this, x, y, angle));
+      this.touchSymbols.set(
+        action,
+        new TouchSymbol(this, x, y, angle, TOUCH_ZONES.radius),
+      );
     }
   }
 

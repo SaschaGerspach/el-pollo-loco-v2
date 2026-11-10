@@ -14,11 +14,16 @@ const ARROW = [
 
 // The old touch arrows as vector art, so they stay sharp at any size.
 export class TouchSymbol extends GameObjects.Graphics {
-  constructor(scene: Scene, x: number, y: number, angle: number) {
+  constructor(
+    scene: Scene,
+    x: number,
+    y: number,
+    angle: number,
+    radius: number,
+  ) {
     super(scene, { x, y });
     scene.add.existing(this);
-    const { radius, arrowColor, outlineColor, circleColor, circleAlpha } =
-      TOUCH_ZONES;
+    const { arrowColor, outlineColor, circleColor, circleAlpha } = TOUCH_ZONES;
     this.fillStyle(circleColor, circleAlpha).fillCircle(0, 0, radius);
     const halfLength = radius * 0.6;
     const points = ARROW.map(
