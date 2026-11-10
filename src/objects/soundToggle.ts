@@ -1,8 +1,8 @@
 import type { Scene } from "phaser";
-import { saveMuted } from "../audio/mute";
+import { isMuted, setMuted } from "../audio/mute";
 import { TextButton } from "./TextButton";
 
-const label = (scene: Scene) => `Sound ${scene.sound.mute ? "off" : "on"}`;
+const label = () => `Sound ${isMuted() ? "off" : "on"}`;
 
 // Mutes all sound of the game; the setting is shared by all scenes and kept across visits.
 export function createSoundToggle(
@@ -15,12 +15,11 @@ export function createSoundToggle(
     scene,
     x,
     y,
-    label(scene),
+    label(),
     fontSize,
     () => {
-      scene.sound.mute = !scene.sound.mute;
-      saveMuted(scene.sound.mute);
-      button.setText(label(scene));
+      setMuted(scene.sound, !isMuted());
+      button.setText(label());
     },
   );
   return button;

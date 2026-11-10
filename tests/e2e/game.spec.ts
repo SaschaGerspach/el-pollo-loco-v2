@@ -321,20 +321,33 @@ test("the legal notice opens above the start screen", async ({ page }) => {
   await expect(dialog).toBeHidden();
 });
 
-test("turning the sound off survives a reload", async ({ page }) => {
+test("turning the sound off survives a reload, and one click turns it on again", async ({
+  page,
+}) => {
   await page.goto("/?debug");
   const { x, y } = START_SCREEN.sound;
+  const stored = () =>
+    page.evaluate(() => localStorage.getItem("el-pollo-loco:muted"));
   // The toggle is right-aligned at x; clicking until the setting is stored also waits for loading.
   await expect
     .poll(async () => {
       await clickGame(page, x - 80, y);
-      return page.evaluate(() => localStorage.getItem("el-pollo-loco:muted"));
+      return stored();
     })
     .toBe("true");
 
   await page.reload();
   await startGame(page);
   await expect(page.locator("#debug")).toContainText("sound off");
+
+  // Phaser reports a new mute state only once the audio has rendered it, so a single click must
+  // switch the sound on without reading the state back.
+  await page.keyboard.press("p");
+  const soundSwitch = PAUSE_MENU.firstButtonY + 2 * PAUSE_MENU.buttonGap;
+  await clickGame(page, GAME_WIDTH / 2, soundSwitch);
+  await expect.poll(stored).toBe("false");
+  await page.keyboard.press("p");
+  await expect(page.locator("#debug")).toContainText("sound on");
 });
 
 test("the fullscreen switch enters and leaves fullscreen", async ({ page }) => {

@@ -1,6 +1,6 @@
 import { Scene } from "phaser";
 import { soundUrls } from "../audio/GameAudio";
-import { loadMuted } from "../audio/mute";
+import { restoreMuted } from "../audio/mute";
 import { ATLAS_PATH, ATLASES } from "../config/assets";
 import { MUSIC, SOUNDS, type SoundKey } from "../config/audio";
 import { BACKGROUND_LAYERS, SKY } from "../config/background";
@@ -52,7 +52,7 @@ export class PreloadScene extends Scene {
 
   create() {
     registerAnimations(this.anims);
-    this.sound.mute = loadMuted();
+    restoreMuted(this.sound);
     this.scene.start("start");
   }
 }
