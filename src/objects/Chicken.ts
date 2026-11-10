@@ -8,7 +8,7 @@ import {
 
 export class Chicken extends Physics.Arcade.Sprite {
   declare body: Physics.Arcade.Body;
-  private readonly kind: ChickenKind;
+  readonly kind: ChickenKind;
   private defeated = false;
 
   constructor(scene: Scene, x: number, y: number, kind: ChickenKind) {

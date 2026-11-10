@@ -1,5 +1,6 @@
 import { Animations, Physics, type Scene } from "phaser";
 import { animationKey } from "../config/animations";
+import { PEPE_BLINK } from "../config/effects";
 import { PEPE, type PEPE_ANIMATIONS } from "../config/pepe";
 import type { PlayerInput } from "../input/Controls";
 import { nextPepeState, type PepeState } from "../logic/pepeState";
@@ -13,6 +14,8 @@ export class Pepe extends Physics.Arcade.Sprite {
   private landingFinished = false;
   private hurtActive = false;
   private dead = false;
+  // Milliseconds left in which Pepe blinks after a hit.
+  private blinkTime = 0;
 
   constructor(scene: Scene, x: number, y: number) {
     super(scene, x, y, "pepe", "idle/1");
@@ -54,12 +57,15 @@ export class Pepe extends Physics.Arcade.Sprite {
     };
   }
 
-  hurt() {
+  // Blinks as long as the hit keeps him from being hurt again.
+  hurt(invulnerability: number) {
     this.hurtActive = true;
+    this.blinkTime = invulnerability;
   }
 
   die() {
     this.dead = true;
+    this.blinkTime = 0;
   }
 
   // Returns true when Pepe jumps off in this frame.
@@ -92,6 +98,10 @@ export class Pepe extends Physics.Arcade.Sprite {
     } else if (next === "jump" && this.body.velocity.y >= 0) {
       this.play(key("fall"), true);
     }
+
+    this.blinkTime = Math.max(0, this.blinkTime - delta);
+    const faded = Math.floor(this.blinkTime / PEPE_BLINK.interval) % 2 === 1;
+    this.setAlpha(faded ? PEPE_BLINK.alpha : 1);
     return jumps;
   }
 

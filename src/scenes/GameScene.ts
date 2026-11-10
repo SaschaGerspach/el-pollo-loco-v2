@@ -1,6 +1,7 @@
 import { Cameras, type Physics, Scene } from "phaser";
 import { GameAudio } from "../audio/GameAudio";
 import { GAME_HEIGHT, GAME_WIDTH } from "../config/display";
+import { HIT_SHAKE } from "../config/effects";
 import { ENDBOSS } from "../config/endboss";
 import { COIN, GROUND_BOTTLE } from "../config/items";
 import { LEVEL } from "../config/level";
@@ -20,6 +21,7 @@ import { GAME_EVENT, type GameEvent } from "../logic/events";
 import { Round } from "../logic/round";
 import { Chicken } from "../objects/Chicken";
 import { Endboss } from "../objects/Endboss";
+import { Feathers } from "../objects/Feathers";
 import { ParallaxBackground } from "../objects/ParallaxBackground";
 import { Pepe } from "../objects/Pepe";
 import { ThrownBottle } from "../objects/ThrownBottle";
@@ -33,6 +35,7 @@ export class GameScene extends Scene {
   private round!: Round;
   private chickens!: Physics.Arcade.Group;
   private thrownBottles!: Physics.Arcade.Group;
+  private feathers!: Feathers;
   private debugOverlay?: HTMLElement;
   // Sum of frame deltas; unlike this.time.now it stands still while the scene is paused.
   // Set in create() because a restart reuses this scene instance.
@@ -83,6 +86,8 @@ export class GameScene extends Scene {
     );
     const startX = DEBUG_BOSS ? ENDBOSS.x - DEBUG_BOSS_DISTANCE : PEPE.startX;
     this.pepe = new Pepe(this, startX, GROUND_Y);
+    // Created last, so the feathers fly in front of the birds.
+    this.feathers = new Feathers(this);
 
     this.physics.add.collider(this.pepe, ground);
     this.physics.add.overlap(this.pepe, coins, (_pepe, coin) =>
@@ -109,7 +114,9 @@ export class GameScene extends Scene {
         this.hitChicken(bottle as ThrownBottle, chicken as Chicken),
     );
     // Any contact with the boss hurts; stomping does not defeat him.
-    this.physics.add.overlap(this.pepe, this.boss, () => this.hurtPepe());
+    this.physics.add.overlap(this.pepe, this.boss, () =>
+      this.hurtPepe(HIT_SHAKE.boss),
+    );
     this.physics.add.overlap(this.boss, this.thrownBottles, (_boss, bottle) =>
       this.hitBoss(bottle as ThrownBottle),
     );
@@ -234,16 +241,21 @@ export class GameScene extends Scene {
       RULES.stompTolerance,
     );
     if (stomp) {
-      if (chicken.defeat()) this.emitEvents(["chicken-defeated"]);
+      if (chicken.defeat()) {
+        this.burstFeathers(chicken);
+        this.emitEvents(["chicken-defeated"]);
+      }
       return;
     }
-    this.hurtPepe();
+    this.hurtPepe(HIT_SHAKE.chicken);
   }
 
-  private hurtPepe() {
+  private hurtPepe(shake: (typeof HIT_SHAKE)[keyof typeof HIT_SHAKE]) {
     const events = this.round.hitPepe(this.elapsed);
+    if (!events.includes("pepe-hit")) return;
     if (events.includes("pepe-died")) this.pepe.die();
-    else if (events.includes("pepe-hit")) this.pepe.hurt();
+    else this.pepe.hurt(RULES.invulnerability);
+    this.cameras.main.shake(shake.duration, shake.intensity);
     this.emitEvents(events);
   }
 
@@ -252,6 +264,10 @@ export class GameScene extends Scene {
     const events: GameEvent[] = ["bottle-splashed", ...this.round.hitBoss()];
     if (events.includes("boss-died")) this.boss.die();
     else if (events.includes("boss-hit")) this.boss.stagger();
+    if (events.includes("boss-hit")) {
+      this.boss.flash();
+      this.feathers.burst("boss", bottle.x, bottle.y);
+    }
     this.emitEvents(events);
   }
 
@@ -272,8 +288,16 @@ export class GameScene extends Scene {
   private hitChicken(bottle: ThrownBottle, chicken: Chicken) {
     if (!bottle.splash()) return;
     const events: GameEvent[] = ["bottle-splashed"];
-    if (chicken.defeat()) events.push("chicken-defeated");
+    if (chicken.defeat()) {
+      this.burstFeathers(chicken);
+      events.push("chicken-defeated");
+    }
     this.emitEvents(events);
+  }
+
+  private burstFeathers(chicken: Chicken) {
+    const { x, y } = chicken.getCenter();
+    this.feathers.burst(chicken.kind, x, y);
   }
 
   // The round goes along, so listeners can show its current values.

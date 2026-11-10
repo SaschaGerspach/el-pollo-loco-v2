@@ -1,5 +1,6 @@
-import { Animations, Physics, type Scene } from "phaser";
+import { Animations, Physics, TintModes, type Scene } from "phaser";
 import { animationKey } from "../config/animations";
+import { BOSS_FLASH } from "../config/effects";
 import { ENDBOSS, type ENDBOSS_ANIMATIONS } from "../config/endboss";
 import {
   horizontalGap,
@@ -20,6 +21,8 @@ export class Endboss extends Physics.Arcade.Sprite {
   private alertFinished = false;
   private hitPending = false;
   private dead = false;
+  // Milliseconds left in which the boss lights up after a hit.
+  private flashTime = 0;
   // The art faces left.
   private direction: 1 | -1 = -1;
 
@@ -60,12 +63,21 @@ export class Endboss extends Physics.Arcade.Sprite {
     this.hitPending = true;
   }
 
+  flash() {
+    this.setTint(BOSS_FLASH.color).setTintMode(TintModes.FILL);
+    this.flashTime = BOSS_FLASH.duration;
+  }
+
   die() {
     this.dead = true;
   }
 
   step(pepe: Pepe, delta: number) {
     this.stateTime += delta;
+    if (this.flashTime > 0) {
+      this.flashTime -= delta;
+      if (this.flashTime <= 0) this.clearTint();
+    }
     const gap = horizontalGap(
       this.body.center.x,
       this.body.width,
